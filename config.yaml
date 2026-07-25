@@ -1,0 +1,29 @@
+server:
+  port: 8080
+  ws_buffer: 256
+
+simulation:
+  initial_processes: 3
+  clock_type: vector       # lamport | vector | matrix
+  delivery_mode: causal    # immediate | causal | total_order
+  channels: full_mesh      # full_mesh | ring | custom
+
+timing:
+  internal_event_interval: 0
+  message_transit_delay: 50ms
+  reorder_probability: 0.0
+  drop_probability: 0.0
+
+snapshot:
+  fifo_channels: true
+
+kv:
+  conflict_strategy: keep_all    # lww | first_writer | merge | keep_all
+
+frontend:
+  port: 3001
+  go_backend: http://localhost:8080
+
+logging:
+  level: info
+  format: json

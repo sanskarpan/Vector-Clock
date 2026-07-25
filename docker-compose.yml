@@ -1,0 +1,40 @@
+# Compose file for local development of the Vector Clock Lab.
+# Production deployments should use Kubernetes manifests or a managed service.
+#
+# Usage:
+#   docker compose up --build
+#   curl http://localhost:8080/healthz
+#   curl http://localhost:8080/metrics | head
+version: "3.9"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: dev
+        COMMIT: local
+    image: vectorclock/server:dev
+    container_name: vectorclock-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      LOGGING_LEVEL: info
+      LOGGING_FORMAT: json
+      # Comma-separated allowlist for CORS + WebSocket origin checks.
+      # Empty = same-origin only. For local dev set to "http://localhost:3001".
+      VC_ALLOWED_ORIGINS: ""
+    configs:
+      - source: app-config
+        target: /etc/vectorclock/config.yaml
+    # Note: no docker healthcheck because the distroless image has no shell.
+    # Use a sidecar `curl` or rely on Kubernetes/load-balancer probes against
+    # /healthz from outside the container.
+    #
+
+configs:
+  app-config:
+    file: ./config.yaml
