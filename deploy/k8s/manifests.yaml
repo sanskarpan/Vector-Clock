@@ -1,0 +1,296 @@
+# Kubernetes manifests for the Vector Clock Lab backend.
+#
+# Apply with:
+#   kubectl apply -f deploy/k8s/
+#
+# This file set is intentionally minimal: it provides a single
+# namespace, one Deployment, one Service, one Ingress, one
+# HorizontalPodAutoscaler, one PodDisruptionBudget, and one
+# cert-manager Certificate. For production, layer on:
+#   - NetworkPolicy to restrict ingress to the BFF
+#   - ServiceAccount + RBAC if you wire in-cluster auth
+#   - Prometheus Operator ServiceMonitor (see deploy/k8s/monitor.yaml)
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vectorclock-config
+  namespace: vectorclock
+data:
+  config.yaml: |
+    server:
+      port: 8080
+      ws_buffer: 256
+    simulation:
+      initial_processes: 3
+      clock_type: vector
+      delivery_mode: causal
+      channels: full_mesh
+    logging:
+      level: info
+      format: json
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vectorclock-tokens
+  namespace: vectorclock
+type: Opaque
+stringData:
+  # Replace with: kubectl create secret generic vectorclock-tokens \
+  #   --from-literal=admin=$(openssl rand -hex 32) \
+  #   --from-literal=bot=$(openssl rand -hex 32)
+  # At least one token must be present, otherwise auth is disabled.
+  VC_API_TOKENS: "admin:CHANGE_ME"
+---
+# Optional: cert-manager Certificate for in-cluster TLS termination.
+# Requires the cert-manager operator to be installed and a matching
+# ClusterIssuer / Issuer named "letsencrypt-prod" to exist. The
+# resulting Secret "vectorclock-tls" is mounted into the deployment
+# and the cert is hot-reloaded by the server every 5 minutes.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vectorclock-tls
+  namespace: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+spec:
+  secretName: vectorclock-tls
+  dnsNames:
+    - vectorclock.example.com
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+  duration: 2160h       # 90 days
+  renewBefore: 720h     # renew 30 days before expiry
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vectorclock-server
+  namespace: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vectorclock
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vectorclock
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      # Distroless image with no shell, runs as nonroot.
+      containers:
+        - name: server
+          image: vectorclock/server:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "8080"
+            - name: CONFIG_PATH
+              value: /etc/vectorclock/config.yaml
+            - name: VC_API_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: vectorclock-tokens
+                  key: VC_API_TOKENS
+            - name: VC_ALLOWED_ORIGINS
+              value: "https://vectorclock.example.com"
+            # TLS termination. The cert-manager Certificate above
+              # writes the cert to the "vectorclock-tls" Secret; the
+              # volumeMount below mounts it under /etc/vectorclock/tls.
+              # The server's background reloader picks up renewals
+              # without a pod restart.
+            - name: VC_TLS_CERT_FILE
+              value: /etc/vectorclock/tls/tls.crt
+            - name: VC_TLS_KEY_FILE
+              value: /etc/vectorclock/tls/tls.key
+            - name: VC_TLS_RELOAD_INTERVAL
+              value: 5m
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
+                  divisor: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # Liveness: server is up. Should be cheap; cheap to call.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness: server is ready to serve traffic. Strict —
+          # 503 during shutdown so the LB stops sending requests.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 2
+          # Startup: gives the bus a moment to warm up.
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vectorclock
+              readOnly: true
+            - name: tls
+              mountPath: /etc/vectorclock/tls
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: vectorclock-config
+        - name: tls
+          secret:
+            secretName: vectorclock-tls
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+            defaultMode: 0o400
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorclock-server
+  namespace: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: vectorclock
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vectorclock-server
+  namespace: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vectorclock-server
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+    scaleUp:
+      stabilizationWindowSeconds: 30
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vectorclock-server
+  namespace: vectorclock
+  labels:
+    app.kubernetes.io/name: vectorclock
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vectorclock
+---
+# Example Ingress. Uncomment + customize for your cluster.
+#
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: vectorclock
+#   namespace: vectorclock
+#   annotations:
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+#     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: vectorclock.example.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: vectorclock-server
+#                 port:
+#                   number: 8080
+#   tls:
+#     - hosts:
+#         - vectorclock.example.com
+#       secretName: vectorclock-tls
