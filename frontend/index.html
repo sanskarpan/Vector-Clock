@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vector Clock & Causal Consistency Lab</title>
+  <link rel="stylesheet" href="./src/styles/tailwind.css" />
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+  <div id="app">
+    <header class="border-b border-slate-700 px-6 py-4 flex items-center gap-4">
+      <h1 class="text-xl font-bold text-white">Vector Clock Lab</h1>
+      <span id="ws-status" class="text-xs px-2 py-1 rounded bg-red-900 text-red-300">Disconnected</span>
+    </header>
+
+    <main class="flex h-[calc(100vh-57px)]">
+      <!-- Space-Time Diagram (main area) -->
+      <section id="space-time-container" class="flex-1 overflow-hidden border-r border-slate-700">
+        <div id="diagram-toolbar" class="px-4 py-2 border-b border-slate-700 flex gap-3 items-center text-sm">
+          <span class="text-slate-400">Clock:</span>
+          <select id="clock-type-select" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs">
+            <option value="vector">Vector</option>
+            <option value="lamport">Lamport</option>
+            <option value="matrix">Matrix</option>
+          </select>
+          <span class="text-slate-400 ml-3">Delivery:</span>
+          <select id="delivery-mode-select" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs">
+            <option value="causal">Causal</option>
+            <option value="immediate">Immediate</option>
+          </select>
+          <div class="ml-auto flex gap-2">
+            <button id="btn-internal-event" class="px-3 py-1 bg-blue-700 hover:bg-blue-600 rounded text-xs">Internal Event [I]</button>
+            <button id="btn-send-message" class="px-3 py-1 bg-green-700 hover:bg-green-600 rounded text-xs">Send Msg [S]</button>
+            <button id="btn-snapshot" class="px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded text-xs">Snapshot [N]</button>
+            <button id="btn-reset" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Reset</button>
+          </div>
+        </div>
+        <div id="space-time-diagram" class="w-full h-[calc(100%-41px)]"></div>
+      </section>
+
+      <!-- Right sidebar -->
+      <aside class="w-80 flex flex-col overflow-y-auto">
+        <!-- Process list -->
+        <section class="border-b border-slate-700 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-300">Processes</h2>
+            <button id="btn-add-process" class="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded">+ Add</button>
+          </div>
+          <div id="process-list" class="space-y-2"></div>
+        </section>
+
+        <!-- Clock Inspector -->
+        <section id="clock-inspector" class="border-b border-slate-700 p-4">
+          <h2 class="text-sm font-semibold text-slate-300 mb-3">Clock Inspector</h2>
+          <div id="clock-inspector-content" class="text-xs text-slate-400">Select an event to inspect</div>
+        </section>
+
+        <!-- Causal Delivery Monitor -->
+        <section id="delivery-monitor" class="border-b border-slate-700 p-4">
+          <h2 class="text-sm font-semibold text-slate-300 mb-3">Delivery Queue</h2>
+          <div id="hold-back-queue" class="text-xs text-slate-400 space-y-1 min-h-[2rem]"></div>
+        </section>
+
+        <!-- Scenarios -->
+        <section class="p-4">
+          <h2 class="text-sm font-semibold text-slate-300 mb-3">Scenarios</h2>
+          <div id="scenario-panel" class="space-y-2"></div>
+        </section>
+
+        <!-- Theory Cards -->
+        <section class="border-t border-slate-700 p-4">
+          <h2 class="text-sm font-semibold text-slate-300 mb-3">Theory</h2>
+          <div id="theory-cards"></div>
+        </section>
+
+        <!-- Conflict Dashboard -->
+        <section class="border-t border-slate-700 p-4">
+          <div id="conflict-dash"></div>
+        </section>
+
+        <!-- Snapshot Viewer -->
+        <section class="border-t border-slate-700 p-4">
+          <div id="snapshot-viewer"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
