@@ -63,8 +63,9 @@ func (g *CausalGraph) AddEdge(from, to string) {
 }
 
 // HappenedBefore returns true if there is a directed path from aID to bID
-// (i.e., a → b, transitively). BFS is bounded by maxBFSDepth to prevent
-// pathological long traversals.
+// (i.e., a → b, transitively). BFS is bounded by the number of unique nodes
+// visited (maxBFSDepth) to prevent pathological traversals on very large graphs.
+// The visited set also prevents infinite loops on any cycle in the graph.
 func (g *CausalGraph) HappenedBefore(aID, bID string) bool {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -75,8 +76,7 @@ func (g *CausalGraph) HappenedBefore(aID, bID string) bool {
 
 	visited := make(map[string]bool)
 	queue := []string{aID}
-	depth := 0
-	for len(queue) > 0 && depth < maxBFSDepth {
+	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
 		if cur == bID {
@@ -86,7 +86,10 @@ func (g *CausalGraph) HappenedBefore(aID, bID string) bool {
 			continue
 		}
 		visited[cur] = true
-		depth++
+		if len(visited) >= maxBFSDepth {
+			// Graph is too large to traverse fully; stop here.
+			break
+		}
 		for next := range g.edges[cur] {
 			if !visited[next] {
 				queue = append(queue, next)
