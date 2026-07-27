@@ -199,12 +199,14 @@ func (c *SnapshotCoordinator) InitiateSnapshot(initiatorID string) (string, erro
 	}
 	ps.perSnap[snapshotID] = state
 	peers := ps.peers
-	ps.mu.Unlock()
-
-	// Send markers to all outgoing channels
+	// Send markers before unlocking so no regular message can be enqueued on
+	// any outgoing channel before its corresponding marker. This preserves the
+	// FIFO ordering that Chandy-Lamport requires: every message sent after the
+	// initiator's cut must arrive at peers AFTER the marker, not before.
 	for _, peer := range peers {
 		c.onSendMarker(initiatorID, peer, snapshotID)
 	}
+	ps.mu.Unlock()
 
 	return snapshotID, nil
 }
@@ -251,15 +253,15 @@ func (c *SnapshotCoordinator) OnMarkerReceived(pid, from, snapshotID string, cap
 		}
 
 		peers := ps.peers
-		ps.mu.Unlock()
-
-		// Forward markers on ALL outgoing channels (Chandy-Lamport §4).
-		// This includes the channel back to the sender: the P_j→P_i directed
-		// channel is independent of P_i→P_j. P_i needs P_j's marker on
-		// P_j→P_i to finalize that channel in P_i's own RecordedChans.
+		// Forward markers before releasing ps.mu. Holding the lock during
+		// marker sends prevents any concurrent outgoing regular message from
+		// being enqueued before the marker on the same channel, which would
+		// violate the FIFO guarantee that Chandy-Lamport depends on.
+		// checkFinalized acquires c.mu→ps.mu; call it after releasing ps.mu.
 		for _, peer := range peers {
 			c.onSendMarker(pid, peer, snapshotID)
 		}
+		ps.mu.Unlock()
 
 		c.checkFinalized(snapshotID, pid)
 
