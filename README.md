@@ -16,8 +16,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/space-time-diagram.svg" alt="Space-time diagram showing vector clock events, causal arrows, and a global snapshot cut" width="720"/>
+  <img src="docs/images/demo.svg" alt="Animated space-time diagram: vector clock events, causal message arrows, and a Chandy-Lamport snapshot cut appearing live" width="760"/>
 </p>
+
+<p align="center"><sub>↑ Animated — events appear one by one, causal arrows connect them, then a consistent snapshot cut is overlaid.</sub></p>
 
 <table align="center">
   <tr>
