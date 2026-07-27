@@ -87,6 +87,13 @@ type ProcessState struct {
 	Status       ProcessStatus                `json:"status"`
 }
 
+// GetVectorClock satisfies the snapshot package's clockGetter interface,
+// allowing the snapshot verifier to extract the vector clock for cut-property
+// consistency checks without creating an import cycle.
+func (ps ProcessState) GetVectorClock() map[string]uint64 {
+	return ps.VectorClock
+}
+
 // Process is a simulated distributed system process.
 //
 // Locking contract:
@@ -228,6 +235,11 @@ func (p *Process) Broadcast(data interface{}) error {
 func (p *Process) Snapshot() ProcessState {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+	return p.snapshotLocked()
+}
+
+// snapshotLocked reads the current state. Caller must hold p.mu (any mode).
+func (p *Process) snapshotLocked() ProcessState {
 	state := ProcessState{
 		ID:           p.cfg.ID,
 		ClockType:    p.cfg.ClockType,
@@ -311,14 +323,21 @@ func (p *Process) handleMessage(msg *Message) {
 		}
 	}()
 	if msg.IsMarker {
-		// Capture state synchronously AT the marker before any subsequent
-		// message processing. This is required for Chandy-Lamport cut
-		// consistency: the local state must be the state when the marker
-		// arrived, not the state some microseconds later when the async
-		// event bus subscriber eventually fires.
+		// Capture state and forward the snapshot marker while holding p.mu.Lock().
+		// Holding the write lock through the onSendMarker call ensures that any
+		// concurrent p.Send() (from an external goroutine) cannot enqueue an
+		// application message into the transport channel BEFORE the marker.
+		// Without this, a concurrent send could tick the clock past the snapshot
+		// value and put a message in the channel first, violating the Chandy-Lamport
+		// cut property (sender counter < message sender-counter).
+		//
+		// OnMarker must NOT call p.Snapshot() internally (it would re-acquire p.mu
+		// and deadlock). The coordinator receives the pre-captured state instead.
 		if p.OnMarker != nil {
-			localState := p.Snapshot()
+			p.mu.Lock()
+			localState := p.snapshotLocked()
 			p.OnMarker(msg.From, msg.SnapshotID, localState)
+			p.mu.Unlock()
 		}
 		p.emitEvent(events.EvtMarkerReceived, &events.MessagePayload{
 			ID:         msg.ID,
