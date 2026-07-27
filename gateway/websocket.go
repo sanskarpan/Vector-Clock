@@ -212,13 +212,11 @@ func (h *WSHub) run() {
 				h.log.Warn("ws hub: marshal error", zap.Error(err))
 				continue
 			}
+			// Hold RLock for the entire send loop. cleanup() closes cl.send
+			// under Lock(), so a concurrent close cannot race a send here.
+			// All sends are non-blocking (select+default) so no deadlock risk.
 			h.mu.RLock()
-			clients := make([]*client, 0, len(h.clients))
 			for cl := range h.clients {
-				clients = append(clients, cl)
-			}
-			h.mu.RUnlock()
-			for _, cl := range clients {
 				select {
 				case cl.send <- data:
 					if h.metrics != nil {
@@ -236,6 +234,7 @@ func (h *WSHub) run() {
 					}
 				}
 			}
+			h.mu.RUnlock()
 		}
 	}
 }
@@ -357,14 +356,17 @@ func (h *WSHub) handleWS(c *gin.Context) {
 		cleanupOnce.Do(func() {
 			stopPing.Do(func() { close(pingStop) })
 			_ = conn.Close()
+			// close(cl.send) must happen while holding h.mu so that the fan-out
+			// goroutine (which holds h.mu.RLock() during sends) cannot race a
+			// send against the close. Lock → delete → close → unlock.
 			h.mu.Lock()
 			delete(h.clients, cl)
 			remaining := len(h.clients)
+			close(cl.send)
 			h.mu.Unlock()
 			if h.metrics != nil {
 				h.metrics.WSClientsConnected.Set(float64(remaining))
 			}
-			close(cl.send)
 		})
 	}
 	defer cleanup()
