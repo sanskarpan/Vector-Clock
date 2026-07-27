@@ -9,7 +9,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'bun server/bff.ts',
+    command: 'bun ../server/bff.ts',
     port: 3001,
     timeout: 30000,
     reuseExistingServer: true,
