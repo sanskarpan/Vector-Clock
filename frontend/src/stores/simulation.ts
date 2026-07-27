@@ -25,10 +25,15 @@ export function isValidEvent(obj: unknown): obj is DHTEvent {
   return typeof e['id'] === 'string' && typeof e['type'] === 'string' && typeof e['processId'] === 'string'
 }
 
+const MAX_EVENTS = 500
+
 // Apply a server event to the store
 export function applyEvent(event: DHTEvent): void {
   const state = simulationStore.get()
-  const newState = { ...state, events: [...state.events, event] }
+  const events = state.events.length >= MAX_EVENTS
+    ? [...state.events.slice(state.events.length - MAX_EVENTS + 1), event]
+    : [...state.events, event]
+  const newState = { ...state, events }
 
   // Update process state based on event
   if (event.type === 'process_spawned') {

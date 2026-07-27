@@ -1,10 +1,3 @@
-// Eden Treaty typed client for the Elysia BFF
-import { treaty } from '@elysiajs/eden'
-import type { App } from '../../server/bff'
-
-export const api = treaty<App>('localhost:3001')
-
-// Typed REST helpers (bypass Eden for plain fetch when body is complex)
 const BASE = '/api'
 
 // H9: checkOk throws on non-2xx responses so callers don't get garbage JSON.

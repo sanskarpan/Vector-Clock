@@ -84,6 +84,7 @@ export function renderArrows(
   const enter = arrows.enter()
     .append('path')
     .attr('class', d => `msg-arrow ${d.isMarker ? 'marker-arrow' : ''}`)
+    .attr('data-msg-id', d => d.msgId)
     .attr('fill', 'none')
     .attr('stroke', d => d.isMarker ? '#a855f7' : '#64748b')
     .attr('stroke-width', d => d.isMarker ? 1.5 : 1)
@@ -107,10 +108,10 @@ export function renderArrows(
       return cubicPath(d.sx, d.sy, d.tx, d.ty)
     })
 
-  // Flash detection: check if any delivered message's arrow should flash
+  // Flash detection: highlight arrow when message is delivered
   for (const e of events) {
     if ((e.type === 'message_delivered' || e.type === 'receive') && e.message) {
-      const existing = g.select<SVGPathElement>(`path.msg-arrow[d*="${e.message.id}"]`)
+      const existing = g.select<SVGPathElement>(`path.msg-arrow[data-msg-id="${e.message.id}"]`)
       if (!existing.empty()) {
         existing
           .interrupt()
@@ -127,6 +128,7 @@ export function renderArrows(
 
   enter.merge(arrows as unknown as d3.Selection<SVGPathElement, typeof arrowData[0], SVGGElement, unknown>)
     .attr('d', d => cubicPath(d.sx, d.sy, d.tx, d.ty))
+    .attr('data-msg-id', d => d.msgId)
 
   arrows.exit().remove()
 }
