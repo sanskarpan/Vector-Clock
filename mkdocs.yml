@@ -1,0 +1,98 @@
+site_name: Vector Clock Lab
+site_description: >-
+  Interactive distributed systems laboratory: Lamport clocks, vector clocks,
+  matrix clocks, causal delivery, Chandy-Lamport global snapshots, and
+  multi-version conflict detection — all visualised in real time.
+site_author: sanskarpan
+repo_url: https://github.com/sanskarpan/Vector-Clock
+repo_name: sanskarpan/Vector-Clock
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+  links:
+    not_found: ignore
+    anchors: ignore
+    absolute_links: ignore
+    unrecognized_links: ignore
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Theory:
+      - Core concepts: concepts.md
+      - Clock algorithms: algorithms.md
+      - Global snapshots: snapshot.md
+      - Causal delivery: causal-delivery.md
+      - Conflict detection: conflict.md
+  - Implementation:
+      - System architecture: architecture.md
+      - REST & WebSocket API: api.md
+      - Configuration reference: configuration.md
+      - Pre-built scenarios: scenarios.md
+      - Frontend components: frontend.md
+  - Operations:
+      - Deployment guide: deployment.md
+      - Testing strategy: testing.md
+      - Operations runbook: RUNBOOK.md
+  - Architecture Decisions:
+      - ADR index: adr/README.md
+      - ADR-0001 Vector clocks as default: adr/0001-vector-clocks-default.md
+      - ADR-0002 In-process transport: adr/0002-in-process-transport.md
+      - ADR-0003 WebSocket origin allowlist: adr/0003-websocket-origin-allowlist.md
+      - ADR-0004 HTTP server timeouts: adr/0004-http-server-timeouts.md
+      - ADR-0005 Prometheus metrics: adr/0005-prometheus-metrics.md
+      - ADR-0006 TLS termination: adr/0006-tls-termination.md
+      - ADR-0007 OpenTelemetry tracing: adr/0007-opentelemetry.md
+  - Cookbook:
+      - Overview: cookbook/index.md
+      - Run your first scenario: cookbook/basic-scenario.md
+      - Chandy-Lamport snapshot walkthrough: cookbook/snapshot-walkthrough.md
+      - Fault injection — delay, drop, partition: cookbook/fault-injection.md
+      - Causal delivery with hold-back queues: cookbook/causal-delivery.md
+      - Conflict detection with version vectors: cookbook/conflict-resolution.md
