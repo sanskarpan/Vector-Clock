@@ -27,3 +27,6 @@ coverage.html
 
 # Config override
 config.local.yaml
+
+# MkDocs build output
+site/
