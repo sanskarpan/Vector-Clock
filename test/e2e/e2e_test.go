@@ -157,6 +157,17 @@ func authPOST(t *testing.T, url string, body string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
+// authDialWS dials a WebSocket with the test bearer token. The /ws endpoint
+// now requires auth when VC_API_TOKENS is configured (fix for the /ws auth
+// bypass where tokens were unconditionally exempted before Enabled() check).
+func authDialWS(t *testing.T, wsURL string) (*websocket.Conn, error) {
+	t.Helper()
+	hdr := http.Header{}
+	hdr.Set("Authorization", "Bearer test:e2e-secret")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, hdr)
+	return conn, err
+}
+
 // ── E2E tests ────────────────────────────────────────────────────────────────
 
 // TestE2E_GoServer_Health verifies the running binary exposes
@@ -294,7 +305,7 @@ func TestE2E_Scenario_Run(t *testing.T) {
 	// Open WebSocket to capture events BEFORE running the scenario, so
 	// the history replay + new events all flow through.
 	wsURL := "ws" + strings.TrimPrefix(addr, "http") + "/ws"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, err := authDialWS(t, wsURL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,6 +636,7 @@ logging:
 
 	// Verify 5 initial processes (from custom config, not 3).
 	req, _ := http.NewRequest("GET", addr+"/api/v1/simulation/state", nil)
+	req.Header.Set("Authorization", "Bearer test:e2e-secret")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -748,7 +760,7 @@ func TestE2E_WS_ProcessSpawned(t *testing.T) {
 	defer cleanup()
 
 	wsURL := "ws" + strings.TrimPrefix(addr, "http") + "/ws"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, err := authDialWS(t, wsURL)
 	if err != nil {
 		t.Fatal(err)
 	}
