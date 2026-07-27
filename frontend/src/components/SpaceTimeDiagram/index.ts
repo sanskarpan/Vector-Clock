@@ -184,10 +184,14 @@ export class SpaceTimeDiagram {
     this._renderLanes(layout)
     this._renderProcessLabels(layout)
     renderArrows(this.arrowGroup, events, layout, this.animatedArrowIds)
+    // Update scrubber BEFORE _renderEvents so currentStep reflects the new
+    // maximum before the event filter runs (otherwise new events at globalSeq N
+    // are filtered out on the render cycle they arrive because currentStep
+    // was still at N-1 when the filter executes).
+    this._updateScrubber(events)
     this._renderEvents(events, layout)
     renderClockLabels(this.clockGroup, events, layout, clockType)
     this._renderCutLine(layout)
-    this._updateScrubber(events)
   }
 
   private _renderLanes(layout: DiagramLayout): void {
@@ -449,9 +453,13 @@ export class SpaceTimeDiagram {
   private _updateScrubber(events: DHTEvent[]): void {
     const maxStep = events.length > 0 ? Math.max(...events.map(e => e.globalSeq)) : 0
     if (maxStep !== this.totalSteps) {
+      // If the user was at the live end (or diagram was empty), keep them there.
+      // This ensures new events are immediately visible rather than hidden behind
+      // a scrubber stuck at step 0.
+      const wasAtEnd = this.currentStep === this.totalSteps
       this.totalSteps = maxStep
       this.scrubber.max = String(maxStep)
-      if (this.currentStep > maxStep) {
+      if (wasAtEnd || this.currentStep > maxStep) {
         this.currentStep = maxStep
         this.scrubber.value = String(maxStep)
       }
