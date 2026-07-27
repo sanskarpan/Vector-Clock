@@ -182,10 +182,16 @@ func (c *SnapshotCoordinator) InitiateSnapshot(initiatorID string) (string, erro
 		return "", fmt.Errorf("process %s not registered", initiatorID)
 	}
 
+	// Capture initiator state BEFORE acquiring ps.mu. onCaptureState calls
+	// back into the process (p.Snapshot → p.mu.RLock). If we held ps.mu here,
+	// we would deadlock with handleMessage which holds p.mu.Lock and then tries
+	// to acquire ps.mu inside OnMarkerReceived.
+	localState := c.onCaptureState(initiatorID)
+
 	ps.mu.Lock()
 	state := &procSnapState{
 		role:          Initiator,
-		localState:    c.onCaptureState(initiatorID),
+		localState:    localState,
 		recordedChans: make(map[string]*ChannelState),
 	}
 	for _, peer := range ps.peers {
@@ -204,7 +210,12 @@ func (c *SnapshotCoordinator) InitiateSnapshot(initiatorID string) (string, erro
 }
 
 // OnMarkerReceived processes a received marker message at a process.
-func (c *SnapshotCoordinator) OnMarkerReceived(pid, from, snapshotID string) {
+// capturedState is the process's state captured atomically at the instant the
+// marker arrived (before any subsequent clock tick). Passing it in avoids a
+// second p.Snapshot() call inside the coordinator, which would race with
+// concurrent sends on the process (and would also re-acquire p.mu, deadlocking
+// when called from handleMessage which already holds p.mu.Lock).
+func (c *SnapshotCoordinator) OnMarkerReceived(pid, from, snapshotID string, capturedState interface{}) {
 	ps := c.getProcessState(pid)
 	if ps == nil {
 		return
@@ -225,7 +236,7 @@ func (c *SnapshotCoordinator) OnMarkerReceived(pid, from, snapshotID string) {
 	case NotParticipating:
 		// FIRST marker: record state, forward markers, mark this channel empty
 		state.role = Participant
-		state.localState = c.onCaptureState(pid)
+		state.localState = capturedState // use pre-captured state; never call onCaptureState here
 
 		// Channel from sender is empty (no messages between snapshot points)
 		state.recordedChans[from] = &ChannelState{From: from, Finalized: true}
@@ -242,7 +253,10 @@ func (c *SnapshotCoordinator) OnMarkerReceived(pid, from, snapshotID string) {
 		peers := ps.peers
 		ps.mu.Unlock()
 
-		// Forward markers on ALL outgoing channels
+		// Forward markers on ALL outgoing channels (Chandy-Lamport §4).
+		// This includes the channel back to the sender: the P_j→P_i directed
+		// channel is independent of P_i→P_j. P_i needs P_j's marker on
+		// P_j→P_i to finalize that channel in P_i's own RecordedChans.
 		for _, peer := range peers {
 			c.onSendMarker(pid, peer, snapshotID)
 		}
@@ -439,6 +453,33 @@ func (c *SnapshotCoordinator) checkFinalized(snapshotID, pid string) {
 		if c.onComplete != nil {
 			c.onComplete(snapshotID, gs)
 		}
+	}
+}
+
+// DeregisterProcess removes a process from the coordinator so that ongoing
+// snapshots no longer wait for its contribution. Peer lists of remaining
+// processes are updated to exclude the removed process.
+// Lock order matches RegisterProcess: hold c.mu to mutate procStates, release
+// it, then lock each ps.mu individually (never nest c.mu inside ps.mu).
+func (c *SnapshotCoordinator) DeregisterProcess(pid string) {
+	c.mu.Lock()
+	delete(c.procStates, pid)
+	toUpdate := make([]*processSnapshot, 0, len(c.procStates))
+	for _, ps := range c.procStates {
+		toUpdate = append(toUpdate, ps)
+	}
+	c.mu.Unlock()
+
+	for _, ps := range toUpdate {
+		ps.mu.Lock()
+		filtered := ps.peers[:0:0]
+		for _, p := range ps.peers {
+			if p != pid {
+				filtered = append(filtered, p)
+			}
+		}
+		ps.peers = filtered
+		ps.mu.Unlock()
 	}
 }
 
