@@ -16,17 +16,20 @@ import (
 
 // newUpgrader returns a websocket.Upgrader configured with the origin allowlist
 // and explicit read/write buffer sizes. CheckOrigin rejects any origin not in
-// the allowlist; an empty allowlist rejects all cross-origin upgrades.
+// the allowlist; an empty allowlist allows all origins (dev/test mode).
 func newUpgrader(allowedOrigins []string) websocket.Upgrader {
 	allow := buildOriginSet(allowedOrigins)
 	return websocket.Upgrader{
 		ReadBufferSize:  WSReadBufferSize,
 		WriteBufferSize: WSWriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			// Same-origin requests typically arrive without an Origin header.
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				return true
+				// No Origin header: allow only when no allowlist is configured.
+				// When origins ARE restricted, a missing header is suspicious
+				// (non-browser client or redirect chain that stripped it) and
+				// must not bypass the allowlist.
+				return len(allowedOrigins) == 0
 			}
 			_, ok := allow[origin]
 			return ok

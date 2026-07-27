@@ -48,13 +48,19 @@ function connectToGo() {
 export const app = new Elysia()
   .use(cors())
 
-  // Proxy all REST requests to Go backend
+  // Proxy all REST requests to Go backend.
+  // The Authorization header is forwarded so that when the Go backend has
+  // VC_API_TOKENS configured (auth enabled), browser clients can authenticate
+  // through the BFF rather than requiring a separate service token.
   .all('/api/*', async ({ request, params }) => {
     const search = new URL(request.url).search
     const url = `${GO_BACKEND_URL}/api/v1/${(params as Record<string,'*'>)['*']}${search}`
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    const auth = request.headers.get('Authorization')
+    if (auth) headers['Authorization'] = auth
     const res = await fetch(url, {
       method: request.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.text()
     })
     const data = await res.text()

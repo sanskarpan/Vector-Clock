@@ -151,14 +151,14 @@ func (m *Manager) Validate(name, secret string) bool {
 // On success, the token name is stored in the gin context as
 // "auth.token" and may be read by handlers via c.GetString("auth.token").
 //
-// The /healthz, /readyz, /metrics, and /ws paths are always permitted.
-// The /ws path is exempt because WebSocket clients cannot set custom
-// headers before the upgrade handshake; in production, the BFF sits
-// in front of the browser and handles browser-facing auth itself.
+// The /healthz, /readyz, and /metrics paths are always public.
+// The /ws path requires auth when tokens ARE configured — the WebSocket
+// upgrade request can carry an Authorization header just like any HTTP
+// request, so exempting /ws unconditionally would silently bypass auth.
 func (m *Manager) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if path == "/healthz" || path == "/readyz" || path == "/metrics" || path == "/ws" {
+		if path == "/healthz" || path == "/readyz" || path == "/metrics" {
 			c.Next()
 			return
 		}

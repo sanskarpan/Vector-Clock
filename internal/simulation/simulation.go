@@ -103,9 +103,6 @@ func New(cfg SimConfig) *Simulation {
 		},
 	)
 
-	markerCh := bus.Subscribe([]events.EventType{events.EvtMarkerReceived})
-	go s.handleMarkerEvents(markerCh)
-
 	cgCh := bus.Subscribe([]events.EventType{
 		events.EvtSend, events.EvtReceive, events.EvtInternalEvent,
 	})
@@ -124,30 +121,6 @@ func (s *Simulation) logSendFailure(op, from, to string, err error) {
 		zap.String("from", from),
 		zap.String("to", to),
 		zap.Error(err))
-}
-
-func (s *Simulation) handleMarkerEvents(ch chan events.Event) {
-	defer func() {
-		if r := recover(); r != nil {
-			if s.log != nil {
-				s.log.Error("handleMarkerEvents: panic recovered",
-					zap.Any("panic", r))
-			}
-		}
-	}()
-	for {
-		select {
-		case e, ok := <-ch:
-			if !ok {
-				return
-			}
-			if e.Message != nil && e.Message.SnapshotID != "" {
-				s.snapshots.OnMarkerReceived(e.ProcessID, e.Message.From, e.Message.SnapshotID)
-			}
-		case <-s.bus.Done():
-			return
-		}
-	}
 }
 
 // Bus returns the shared event bus.
@@ -252,8 +225,8 @@ func (s *Simulation) SpawnProcess(cfg process.ProcessConfig) error {
 	// notified with the process's state captured AT the instant of marker
 	// arrival, before any subsequent message processing — this is what
 	// makes the Chandy-Lamport cut property (Chandy & Lamport 1985) hold.
-	p.OnMarker = func(from, snapshotID string, _ process.ProcessState) {
-		s.snapshots.OnMarkerReceived(pid, from, snapshotID)
+	p.OnMarker = func(from, snapshotID string, localState process.ProcessState) {
+		s.snapshots.OnMarkerReceived(pid, from, snapshotID, localState)
 	}
 
 	s.transport.RegisterProcess(pid, func(m *process.Message) {
@@ -310,6 +283,9 @@ func (s *Simulation) KillProcess(id string) error {
 	}
 	delete(s.processes, id)
 	s.mu.Unlock()
+	// Deregister before stopping so any active snapshot can still complete
+	// without waiting forever for a process that will never report.
+	s.snapshots.DeregisterProcess(id)
 	p.Stop()
 	return nil
 }
