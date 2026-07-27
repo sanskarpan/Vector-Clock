@@ -180,11 +180,9 @@ func (t *SimTransport) sendDelayed(ch chan *process.Message, m *process.Message,
 }
 
 // forward drains a channel and invokes the registered delivery function.
+// deliverFn is looked up per message so that RegisterProcess calls that
+// arrive after RegisterChannel (as happens during SpawnProcess) are seen.
 func (t *SimTransport) forward(key ChannelKey, ch chan *process.Message) {
-	t.mu.RLock()
-	deliverFn := t.deliver[key.To]
-	t.mu.RUnlock()
-
 	defer func() {
 		if r := recover(); r != nil {
 		}
@@ -197,6 +195,9 @@ func (t *SimTransport) forward(key ChannelKey, ch chan *process.Message) {
 			if !ok {
 				return
 			}
+			t.mu.RLock()
+			deliverFn := t.deliver[key.To]
+			t.mu.RUnlock()
 			if deliverFn != nil {
 				func() {
 					defer func() { _ = recover() }()
