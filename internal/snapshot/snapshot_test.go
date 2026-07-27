@@ -38,8 +38,10 @@ func setupCoordinator(t *testing.T, pids []string) (*snapshot.SnapshotCoordinato
 			mu.Lock()
 			markerLog = append(markerLog, from+"→"+to)
 			mu.Unlock()
-			// Directly deliver marker (simulating in-process transport)
-			go coord.OnMarkerReceived(to, from, snapshotID)
+			// Directly deliver marker (simulating in-process transport).
+			// Pass the pre-captured state for the receiving process so the
+			// coordinator doesn't need to call onCaptureState internally.
+			go coord.OnMarkerReceived(to, from, snapshotID, states[to])
 		},
 		func(pid string) interface{} {
 			return states[pid]
@@ -137,7 +139,7 @@ outer:
 	}
 
 	// Step 2: deliver P1→P2 marker first (P2 becomes Participant, starts recording P3→P2)
-	coord.OnMarkerReceived("P2", "P1", snapID)
+	coord.OnMarkerReceived("P2", "P1", snapID, "P2-state")
 
 	// Step 3: inject an in-transit message from P3 to P2 BEFORE P3's marker arrives.
 	// This simulates a message that was sent by P3 before its cut.
@@ -151,12 +153,12 @@ outer:
 
 	// Step 4: deliver remaining markers to complete the snapshot.
 	// Deliver P1→P3 marker (P3 becomes Participant)
-	coord.OnMarkerReceived("P3", "P1", snapID)
+	coord.OnMarkerReceived("P3", "P1", snapID, "P3-state")
 	// P3 sends markers to P1 and P2; drain them.
 	for i := 0; i < 4; i++ {
 		select {
 		case m := <-markerDelivery:
-			coord.OnMarkerReceived(m.to, m.from, m.sid)
+			coord.OnMarkerReceived(m.to, m.from, m.sid, m.to+"-state")
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
@@ -276,12 +278,12 @@ func deliverAllMarkers(markerCh chan struct{ to, from, sid string }, coord *snap
 	for {
 		select {
 		case m := <-markerCh:
-			coord.OnMarkerReceived(m.to, m.from, m.sid)
+			coord.OnMarkerReceived(m.to, m.from, m.sid, m.to+"-state")
 		default:
 			// No marker ready — give cascading markers time to arrive
 			select {
 			case m := <-markerCh:
-				coord.OnMarkerReceived(m.to, m.from, m.sid)
+				coord.OnMarkerReceived(m.to, m.from, m.sid, m.to+"-state")
 			case <-time.After(gracePeriod):
 				return
 			}
