@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 460"
+     font-family="ui-monospace,'Cascadia Code','Source Code Pro',Menlo,monospace">
+<style>
+/* 16-second loop — events appear one by one, then fade and restart */
+
+/* Always-visible chrome fades out just before loop reset */
+.chrome { animation: chrome 16s linear infinite; }
+@keyframes chrome {
+  0%   { opacity: 1 }
+  87%  { opacity: 1 }
+  94%  { opacity: 0 }
+  100% { opacity: 0 }
+}
+
+/* Individual event/element timing: each appears, stays, fades at end */
+/* e1: P1 internal — t=1s (6.25%) */
+.e1 { animation: e1 16s linear infinite; }
+@keyframes e1 {
+  0%,5%   { opacity:0 } 8%   { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* e2: P1 send — t=2.5s (15.6%) */
+.e2 { animation: e2 16s linear infinite; }
+@keyframes e2 {
+  0%,14%  { opacity:0 } 17%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* f1 + arrow A1: P2 recv — t=4s (25%) */
+.f1 { animation: f1 16s linear infinite; }
+@keyframes f1 {
+  0%,23%  { opacity:0 } 26%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* f2: P2 internal — t=5.5s (34.4%) */
+.f2 { animation: f2 16s linear infinite; }
+@keyframes f2 {
+  0%,33%  { opacity:0 } 36%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* g1: P3 internal — t=6.5s (40.6%) */
+.g1 { animation: g1 16s linear infinite; }
+@keyframes g1 {
+  0%,39%  { opacity:0 } 42%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* f3: P2 send — t=7.5s (46.9%) */
+.f3 { animation: f3 16s linear infinite; }
+@keyframes f3 {
+  0%,45%  { opacity:0 } 48%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* g2 + arrow A2: P3 recv — t=9s (56.25%) */
+.g2 { animation: g2 16s linear infinite; }
+@keyframes g2 {
+  0%,55%  { opacity:0 } 58%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* snapshot cut: t=10.5s (65.6%) */
+.scut { animation: scut 16s linear infinite; }
+@keyframes scut {
+  0%,64%  { opacity:0 } 67%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+/* consistency badge: t=12s (75%) */
+.badge { animation: badge 16s linear infinite; }
+@keyframes badge {
+  0%,74%  { opacity:0 } 77%  { opacity:1 } 87% { opacity:1 } 94% { opacity:0 } 100% { opacity:0 }
+}
+
+/* Step counter dot (pulse every "step") */
+.dot-1 { animation: dot-1 16s linear infinite; }
+@keyframes dot-1 {
+  0%,4%   { r:0 } 7%,10%   { r:6 } 11%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-2 { animation: dot-2 16s linear infinite; }
+@keyframes dot-2 {
+  0%,13%  { r:0 } 16%,19%  { r:6 } 20%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-3 { animation: dot-3 16s linear infinite; }
+@keyframes dot-3 {
+  0%,22%  { r:0 } 25%,28%  { r:6 } 29%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-4 { animation: dot-4 16s linear infinite; }
+@keyframes dot-4 {
+  0%,32%  { r:0 } 35%,38%  { r:6 } 39%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-5 { animation: dot-5 16s linear infinite; }
+@keyframes dot-5 {
+  0%,38%  { r:0 } 41%,44%  { r:6 } 45%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-6 { animation: dot-6 16s linear infinite; }
+@keyframes dot-6 {
+  0%,44%  { r:0 } 47%,50%  { r:6 } 51%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+.dot-7 { animation: dot-7 16s linear infinite; }
+@keyframes dot-7 {
+  0%,54%  { r:0 } 57%,60%  { r:6 } 61%    { r:4 } 87% { r:4 } 94% { r:0 } 100% { r:0 }
+}
+</style>
+
+<!-- ── Background ─────────────────────────────────────────────── -->
+<rect width="760" height="460" fill="#0d1117"/>
+
+<!-- ── Title bar ──────────────────────────────────────────────── -->
+<rect width="760" height="38" fill="#161b22"/>
+<circle cx="18" cy="19" r="5" fill="#ff5f57"/>
+<circle cx="34" cy="19" r="5" fill="#febc2e"/>
+<circle cx="50" cy="19" r="5" fill="#28c840"/>
+<text x="380" y="24" text-anchor="middle" font-size="11.5" fill="#c9d1d9">
+  Vector Clock Lab — Space-Time Diagram
+</text>
+<text x="680" y="24" text-anchor="start" font-size="9" fill="#3fb950">● connected</text>
+
+<!-- ── Arrowhead markers ──────────────────────────────────────── -->
+<defs>
+  <marker id="mhg" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0,8 3,0 6" fill="#22c55e" opacity="0.9"/>
+  </marker>
+  <marker id="mhb" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+    <polygon points="0 0,8 3,0 6" fill="#60a5fa" opacity="0.9"/>
+  </marker>
+</defs>
+
+<!-- ── Process lanes (always visible) ────────────────────────── -->
+<g class="chrome">
+  <!-- P1 lane -->
+  <line x1="155" y1="50" x2="155" y2="420" stroke="#7ee787" stroke-width="1.5" opacity="0.3"/>
+  <text x="155" y="66" text-anchor="middle" font-size="13" font-weight="bold" fill="#7ee787">P1</text>
+  <text x="155" y="79" text-anchor="middle" font-size="8.5" fill="#3fb950">vector clock</text>
+
+  <!-- P2 lane -->
+  <line x1="375" y1="50" x2="375" y2="420" stroke="#79c0ff" stroke-width="1.5" opacity="0.3"/>
+  <text x="375" y="66" text-anchor="middle" font-size="13" font-weight="bold" fill="#79c0ff">P2</text>
+  <text x="375" y="79" text-anchor="middle" font-size="8.5" fill="#388bfd">vector clock</text>
+
+  <!-- P3 lane -->
+  <line x1="595" y1="50" x2="595" y2="420" stroke="#f97583" stroke-width="1.5" opacity="0.3"/>
+  <text x="595" y="66" text-anchor="middle" font-size="13" font-weight="bold" fill="#f97583">P3</text>
+  <text x="595" y="79" text-anchor="middle" font-size="8.5" fill="#e05252">vector clock</text>
+
+  <!-- Time axis -->
+  <text x="30" y="258" text-anchor="middle" font-size="9.5" fill="#6e7681" transform="rotate(-90,30,258)">time →</text>
+  <line x1="42" y1="88" x2="42" y2="415" stroke="#6e7681" stroke-width="0.5" stroke-dasharray="2,5" opacity="0.3"/>
+
+  <!-- Lane separator bands -->
+  <rect x="55" y="88" width="650" height="330" fill="#0f172a" opacity="0.3"/>
+
+  <!-- Step indicator dots (timeline scrubber visual) -->
+  <text x="380" y="443" text-anchor="middle" font-size="8.5" fill="#6e7681">event replay</text>
+</g>
+
+<!-- Scrubber dots (pulse when each event fires) -->
+<g class="chrome">
+  <circle class="dot-1" cx="305" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-2" cx="320" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-3" cx="335" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-4" cx="350" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-5" cx="365" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-6" cx="380" cy="440" r="4" fill="#3b82f6"/>
+  <circle class="dot-7" cx="395" cy="440" r="4" fill="#3b82f6"/>
+</g>
+
+<!-- ── P1 e1: internal event ── -->
+<g class="e1">
+  <circle cx="155" cy="130" r="8" fill="#3b82f6" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="103" y="127" text-anchor="end" font-size="9" fill="#93c5fd">{1,0,0}</text>
+  <text x="103" y="139" text-anchor="end" font-size="7.5" fill="#6e7681">internal</text>
+</g>
+
+<!-- ── P1 e2: send to P2 ── -->
+<g class="e2">
+  <circle cx="155" cy="205" r="8" fill="#22c55e" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="103" y="202" text-anchor="end" font-size="9" fill="#86efac">{2,0,0}</text>
+  <text x="103" y="214" text-anchor="end" font-size="7.5" fill="#6e7681">send → P2</text>
+</g>
+
+<!-- ── Arrow A1: P1 → P2 (appears with f1) ── -->
+<line class="f1"
+      x1="163" y1="209" x2="366" y2="246"
+      stroke="#22c55e" stroke-width="1.5" opacity="0.8"
+      marker-end="url(#mhg)"/>
+
+<!-- ── P2 f1: recv from P1 ── -->
+<g class="f1">
+  <circle cx="375" cy="250" r="8" fill="#f59e0b" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="427" y="247" text-anchor="start" font-size="9" fill="#fcd34d">{2,1,0}</text>
+  <text x="427" y="259" text-anchor="start" font-size="7.5" fill="#6e7681">← recv P1</text>
+</g>
+
+<!-- ── P2 f2: internal ── -->
+<g class="f2">
+  <circle cx="375" cy="298" r="8" fill="#3b82f6" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="427" y="295" text-anchor="start" font-size="9" fill="#93c5fd">{2,2,0}</text>
+  <text x="427" y="307" text-anchor="start" font-size="7.5" fill="#6e7681">internal</text>
+</g>
+
+<!-- ── P3 g1: internal ── -->
+<g class="g1">
+  <circle cx="595" cy="150" r="8" fill="#3b82f6" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="647" y="147" text-anchor="start" font-size="9" fill="#93c5fd">{0,0,1}</text>
+  <text x="647" y="159" text-anchor="start" font-size="7.5" fill="#6e7681">internal</text>
+</g>
+
+<!-- ── P2 f3: send to P3 ── -->
+<g class="f3">
+  <circle cx="375" cy="345" r="8" fill="#22c55e" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="427" y="342" text-anchor="start" font-size="9" fill="#86efac">{2,3,0}</text>
+  <text x="427" y="354" text-anchor="start" font-size="7.5" fill="#6e7681">send → P3</text>
+</g>
+
+<!-- ── Arrow A2: P2 → P3 (appears with g2) ── -->
+<line class="g2"
+      x1="383" y1="348" x2="586" y2="370"
+      stroke="#60a5fa" stroke-width="1.5" opacity="0.8"
+      marker-end="url(#mhb)"/>
+
+<!-- ── P3 g2: recv from P2 ── -->
+<g class="g2">
+  <circle cx="595" cy="373" r="8" fill="#f59e0b" stroke="#0d1117" stroke-width="2.5"/>
+  <text x="647" y="370" text-anchor="start" font-size="9" fill="#fcd34d">{2,3,2}</text>
+  <text x="647" y="382" text-anchor="start" font-size="7.5" fill="#6e7681">← recv P2</text>
+</g>
+
+<!-- ── Chandy-Lamport snapshot cut ── -->
+<g class="scut">
+  <line x1="55" y1="318" x2="700" y2="318"
+        stroke="#e3b341" stroke-width="2" stroke-dasharray="8,4" opacity="0.9"/>
+  <rect x="59" y="305" width="94" height="20" rx="4" fill="#1a1400" stroke="#e3b341" stroke-width="1" opacity="0.9"/>
+  <text x="106" y="319" text-anchor="middle" font-size="9" fill="#e3b341">snapshot cut</text>
+</g>
+
+<!-- ── Consistency badge ── -->
+<g class="badge">
+  <rect x="255" y="395" width="250" height="28" rx="6" fill="#0a1f0f" stroke="#2ea44f" stroke-width="1.5"/>
+  <text x="380" y="413" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#3fb950">✓ Consistent Snapshot</text>
+</g>
+
+<!-- ── Legend ────────────────────────────────────────────────── -->
+<g class="chrome">
+  <rect x="0" y="426" width="760" height="34" fill="#161b22"/>
+  <circle cx="58"  cy="443" r="5" fill="#3b82f6"/>
+  <text   x="67"  y="447" font-size="8.5" fill="#8b949e">internal</text>
+  <circle cx="118" cy="443" r="5" fill="#22c55e"/>
+  <text   x="127" y="447" font-size="8.5" fill="#8b949e">send</text>
+  <circle cx="170" cy="443" r="5" fill="#f59e0b"/>
+  <text   x="179" y="447" font-size="8.5" fill="#8b949e">receive</text>
+  <line   x1="225" y1="439" x2="243" y2="447" stroke="#22c55e" stroke-width="1.5" marker-end="url(#mhg)"/>
+  <text   x="249" y="447" font-size="8.5" fill="#8b949e">causal message</text>
+  <line   x1="360" y1="443" x2="394" y2="443" stroke="#e3b341" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text   x="400" y="447" font-size="8.5" fill="#8b949e">global snapshot cut</text>
+  <text   x="560" y="447" font-size="8.5" fill="#8b949e">{p,q,r} = vector clock</text>
+</g>
+
+</svg>
