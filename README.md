@@ -1,397 +1,324 @@
-# Vector Clock Lab
+<h1 align="center">Vector Clock Lab</h1>
 
-[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://sanskarpan.github.io/Vector-Clock/)
-[![CI](https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml/badge.svg)](https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center">
+  An interactive distributed systems laboratory — Lamport clocks, vector clocks, matrix clocks,<br/>
+  causal delivery, Chandy-Lamport global snapshots, and conflict detection, all live in the browser.
+</p>
 
-> An interactive laboratory for exploring distributed-system time: Lamport
-> scalar clocks, vector clocks, matrix clocks, version vectors, dotted version
-> vectors, causal delivery (BSS hold-back queues), the Chandy-Lamport global
-> snapshot algorithm, and multi-version conflict detection.
+<p align="center">
+  <a href="https://sanskarpan.github.io/Vector-Clock/"><img alt="Docs" src="https://img.shields.io/badge/docs-GitHub%20Pages-7ee787?logo=github"/></a>&nbsp;
+  <a href="https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml/badge.svg"/></a>&nbsp;
+  <a href="https://github.com/sanskarpan/Vector-Clock/actions/workflows/docs.yml"><img alt="Docs CI" src="https://github.com/sanskarpan/Vector-Clock/actions/workflows/docs.yml/badge.svg"/></a>&nbsp;
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go"/>&nbsp;
+  <img alt="Bun" src="https://img.shields.io/badge/Bun-1.3+-fbf0df?logo=bun"/>&nbsp;
+  <img alt="Race tested" src="https://img.shields.io/badge/race--tested-✓-2ea44f"/>&nbsp;
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"/></a>
+</p>
 
-**[Full documentation →](https://sanskarpan.github.io/Vector-Clock/)**
+<p align="center">
+  <img src="docs/images/space-time-diagram.svg" alt="Space-time diagram showing vector clock events, causal arrows, and a global snapshot cut" width="720"/>
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/images/screenshot-overview.png" alt="Space-time diagram — live vector clock events and causal arrows" width="100%"/>
+      <br/><sub><b>Space-Time Diagram</b> — live D3, scrubber, snapshot cut</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/images/screenshot-snapshot.png" alt="Chandy-Lamport snapshot viewer — consistent cut with in-transit messages" width="100%"/>
+      <br/><sub><b>Snapshot Viewer</b> — consistent cut, channel states, proof</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/images/screenshot-conflicts.png" alt="Conflict dashboard — version-vector concurrent write conflicts" width="100%"/>
+      <br/><sub><b>Conflict Dashboard</b> — concurrent writes, version vectors</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/images/screenshot-causal.png" alt="Causal delivery monitor — BSS hold-back queue and delivery timeline" width="100%"/>
+      <br/><sub><b>Causal Delivery Monitor</b> — BSS hold-back queues</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## Table of Contents
+## What you can explore
 
-1. [What it does](#what-it-does)
-2. [Architecture](#architecture)
-3. [Prerequisites](#prerequisites)
-4. [Quickstart](#quickstart)
-5. [Configuration reference](#configuration-reference)
-6. [HTTP + WebSocket API](#http--websocket-api)
-7. [Running tests](#running-tests)
-8. [Building and running in Docker](#building-and-running-in-docker)
-9. [TLS termination](#tls-termination)
-10. [Operations runbook](docs/RUNBOOK.md)
-11. [Architecture decisions](docs/adr/)
-12. [Contributing](#contributing)
-13. [License](#license)
+The lab simulates **N processes** exchanging messages over in-process FIFO channels and streams every event — clock tick, send, receive, marker — to a live D3-powered space-time diagram in the browser.
+
+```bash
+# Start the lab
+docker compose up -d
+open http://localhost:3001
+```
+
+- Spawn processes and watch their **Lamport, vector, or matrix clocks** tick in real time
+- Send messages and observe **causal arrows** drawn across process lanes
+- Inject **network faults** — delay, drop, reorder, partition — and watch the system react
+- Trigger a **Chandy-Lamport global snapshot** and inspect the consistent cut with in-transit messages
+- Write concurrently to the **causal KV store** and see version-vector conflict detection fire
 
 ---
 
-## What it does
+## Algorithms implemented
 
-The Vector Clock Lab simulates a small distributed system in a single Go
-process and exposes it as an HTTP + WebSocket API. You can:
+| Concept | Paper | Module |
+|---------|-------|--------|
+| Scalar logical clocks | Lamport 1978 | `internal/clock/lamport` |
+| Happened-before relation (→) | Lamport 1978 | `internal/causality` |
+| Vector clocks | Fidge 1988 / Mattern 1989 | `internal/clock/vector` |
+| Partial order detection | Charron-Bost 1991 | `internal/causality` |
+| Matrix clocks (MC1–MC4) | Kshemkalyani & Singhal 1992 | `internal/clock/matrix` |
+| Version vectors | Parker et al. 1983 | `internal/clock/version` |
+| Dotted version vectors | Preguiça et al. 2010 | `internal/clock/dvv` |
+| BSS causal broadcast | Birman-Schiper-Stephenson 1987 | `internal/process` |
+| Global snapshot | Chandy-Lamport 1985 | `internal/snapshot` |
+| Causal KV store | Ahamad et al. 1995 | `internal/conflict` |
 
-- Spawn processes (P1, P2, ...) and watch their clocks tick.
-- Inject network faults (delay, drop) on specific channels.
-- Run pre-built scenarios (BasicLamport, ConcurrentWrites, CausalViolation,
-  CausalDelivery, Snapshot3P).
-- Issue a Chandy-Lamport global snapshot and inspect the captured state +
-  in-transit messages.
-- Read and write to a multi-version KV store that detects causal conflicts
-  and resolves them with last-writer-wins / first-writer-wins / keep-all.
-
-The frontend (Bun + TypeScript) visualises clocks, the causal graph, the
-space-time diagram, and the snapshot inspector.
-
-## Features
-
-- **Clock types**: Lamport scalar, vector, matrix, dotted version vectors
-- **Causal delivery** via BSS hold-back queues with `BlockedBy` analysis
-- **Concurrent snapshot initiators** (per CHECKLIST Phase 7)
-- **Multi-version conflict detection** with `LastWriterWins`/`FirstWriterWins`/custom resolvers
-- **Transport fault injection**: delay, drop, reorder, partition
-- **Anti-entropy sync** between replicas
-- **OpenTelemetry tracing** (OTLP/stdout)
-- **Rate limiting** per-IP (token bucket, 100 req/min default)
-- **Pre-built scenarios**: BasicLamport, CausalViolation, CausalDelivery, Snapshot3P, ConcurrentWrites, FalseConflict, MatrixGC, PartitionAndHeal
+---
 
 ## Architecture
 
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="System architecture diagram" width="720"/>
+</p>
+
+The Go backend (`gateway/` + `internal/`) runs on `:8080`. A Bun/Elysia BFF on `:3001` proxies REST and WebSocket connections. All internal events are published on an `EventBus` and fanned out to every connected browser.
+
 ```
-                          ┌─────────────────────────────┐
-                          │        Browser / curl       │
-                          └──────────┬──────────────────┘
-                                     │ HTTP + WS
-                          ┌──────────▼──────────────────┐
-                          │   gateway/  (Gin server)    │
-                          │   /api/v1/...   /ws   /m... │
-                          └──────────┬──────────────────┘
-                                     │
-                          ┌──────────▼──────────────────┐
-                          │   internal/simulation       │
-                          │   ┌─────────────────────┐   │
-                          │   │  N × Process        │   │
-                          │   │  ┌──────────────┐   │   │
-                          │   │  │ clock/vector │   │   │
-                          │   │  │ clock/matrix │   │   │
-                          │   │  │ clock/lamport│   │   │
-                          │   │  └──────────────┘   │   │
-                          │   └─────────────────────┘   │
-                          │   SimTransport (in-proc)    │
-                          │   EventBus (pub/sub)        │
-                          │   SnapshotCoordinator       │
-                          └──────────┬──────────────────┘
-                                     │
-                          ┌──────────▼──────────────────┐
-                          │   internal/conflict  (KV)   │
-                          │   internal/causality (graph)│
-                          └─────────────────────────────┘
+Browser (D3 + TypeScript)
+   │ HTTP + WebSocket
+BFF (Bun + Elysia :3001)        ← forwards Authorization header
+   │ HTTP + WebSocket :8080
+Gateway (Gin)                   ← auth, metrics, TLS, rate-limit
+   │
+Simulation Engine               ← N processes, SimTransport, EventBus
+   ├── N × Process              ← clock, hold-back queue, KV store
+   ├── SnapshotCoordinator      ← Chandy-Lamport, race-free capture
+   └── SimTransport             ← per-channel buffered Go channels
 ```
 
-## Prerequisites
-
-| Tool   | Version          | Notes                                  |
-| ------ | ---------------- | -------------------------------------- |
-| Go     | 1.25.0 or newer  | Required by go.mod                     |
-| Bun    | 1.1+             | Frontend only; not needed for backend   |
-| Docker | 24+              | Optional; for container deployment     |
-
-Verify with:
-
-```sh
-go version       # go1.25.0 or newer
-bun --version    # 1.1 or newer (frontend only)
-docker --version # optional
-```
+---
 
 ## Quickstart
 
-Five commands to a running server:
+### Docker Compose
 
-```sh
-git clone <repo>
+```bash
+git clone https://github.com/sanskarpan/Vector-Clock.git
 cd Vector-Clock
-go mod download
-cp config.yaml config.local.yaml       # optional: tweak defaults
-go run ./cmd/server
-# Server listening on http://localhost:8080
+docker compose up -d
+
+# Verify
+curl http://localhost:8080/healthz   # {"status":"ok"}
+open http://localhost:3001
 ```
 
-Verify:
+### Run directly
 
-```sh
-curl http://localhost:8080/healthz     # → {"status":"ok",...}
-curl http://localhost:8080/readyz      # → {"ready":true}
-curl http://localhost:8080/metrics | head
-curl http://localhost:8080/api/v1/simulation/state | jq .
+```bash
+go run ./cmd/server                  # backend on :8080
+cd frontend && bun install && bun run dev  # BFF + frontend on :3001
 ```
 
-Frontend (optional):
+### Try it from curl
 
-```sh
-cd frontend
-bun install
-bun run dev
-# Open http://localhost:3001
+```bash
+# Spawn three processes
+curl -X POST :8080/api/v1/processes -d '{"id":"P1","clock_type":"vector"}'
+curl -X POST :8080/api/v1/processes -d '{"id":"P2","clock_type":"vector"}'
+curl -X POST :8080/api/v1/processes -d '{"id":"P3","clock_type":"vector"}'
 
-Run a pre-built scenario (server already running):
+# Send a message — watch the WebSocket stream for causal events
+curl -X POST :8080/api/v1/messages -d '{"from":"P1","to":"P2","payload":"hello"}'
 
-```sh
-curl -X POST http://localhost:8080/api/v1/scenarios/BasicLamport/run
+# Run the 3-process snapshot scenario
+curl -X POST :8080/api/v1/scenarios/Snapshot3P/run
+
+# Inject a 300ms delay on P1→P3
+curl -X POST :8080/api/v1/channels/P1/P3/delay -d '{"delay_ms":300}'
+
+# Trigger a network partition
+curl -X POST :8080/api/v1/partition -d '{"side_a":["P1","P2"],"side_b":["P3"]}'
+curl -X DELETE :8080/api/v1/partition   # heal
 ```
 
-#### Frontend UI components
+---
 
-The frontend is organized into several panels:
+## Pre-built scenarios
 
-- **Space-Time Diagram**: event visualization, consistent cut lines, message transit animation, timeline scrubber
-- **Clock Inspector**: per-process clock display, matrix heatmap, concurrent analysis
-- **Delivery Monitor**: hold-back queue visualization, delivery timeline per process, causal/immediate mode toggle
-- **Conflict Dashboard**: version DAG, VV/DVV false conflict toggle, resolution log
-- **Snapshot Viewer**: 3-phase display, verification button
-- **Scenario Panel**: narration, auto-animate, custom scenario builder
+Eight scenarios demonstrate key distributed systems properties — run any from the UI or:
 
-## Configuration reference
-
-All configuration is read from `config.yaml` (or `CONFIG_PATH` if set) plus
-environment variables. **Environment variables override the config file.**
-
-### File: `config.yaml`
-
-| Key                          | Type   | Default      | Description                                |
-| ---------------------------- | ------ | ------------ | ------------------------------------------ |
-| `server.port`                | int    | 8080         | TCP port the HTTP server binds to          |
-| `server.ws_buffer`           | int    | 256          | (Reserved) per-client WS send buffer       |
-| `server.rate_limit_per_ip`   | float  | 1.67         | Per-IP rate limit (req/s); 0 = disabled   |
-| `server.rate_limit_burst`    | float  | 10           | Token bucket burst size                   |
-| `simulation.initial_processes` | int  | 3            | Number of processes spawned at startup     |
-| `simulation.clock_type`      | string | `vector`     | `lamport` \| `vector` \| `matrix`          |
-| `simulation.delivery_mode`   | string | `causal`     | `immediate` \| `causal` \| `total_order`   |
-| `simulation.channels`        | string | `full_mesh`  | `full_mesh` (other values log + fall back) |
-| `logging.level`              | string | `info`       | `debug` \| `info` \| `warn` \| `error`      |
-| `logging.format`             | string | `json`       | `json` \| `console`                        |
-
-### Environment variables
-
-| Variable                    | Type        | Default          | Required | Description                                          |
-| --------------------------- | ----------- | ---------------- | -------- | ---------------------------------------------------- |
-| `PORT`                      | int         | 8080             | no       | Override listening port                              |
-| `CONFIG_PATH`               | string      | `config.yaml`    | no       | Path to YAML config file                             |
-| `VC_ALLOWED_ORIGINS`        | string list | (empty)          | no       | Comma-separated origin allowlist for WS + CORS       |
-| `VC_TLS_CERT_FILE`          | string      | (empty)          | no       | PEM cert path. Setting this enables HTTPS            |
-| `VC_TLS_KEY_FILE`           | string      | (empty)          | no       | PEM private key path (required when cert is set)     |
-| `VC_TLS_CLIENT_CA_FILE`     | string      | (empty)          | no       | PEM CA bundle path; enables mTLS when set            |
-| `VC_TLS_RELOAD_INTERVAL`    | duration    | (empty)          | no       | e.g. `5m`; poll interval for cert hot-reload          |
-| `LOGGING_LEVEL`             | string      | (from config)    | no       | Log level override                                   |
-| `LOGGING_FORMAT`            | string      | (from config)    | no       | Log format override                                  |
-
-`PORT` must be in the range 1..65535. `VC_ALLOWED_ORIGINS` empty = same-origin
-only (recommended).
-
-### TLS termination
-
-The server can terminate TLS itself or run behind a TLS-terminating
-load balancer. To terminate TLS at the application, set
-`VC_TLS_CERT_FILE` and `VC_TLS_KEY_FILE` to PEM-encoded files. When
-set, the server listens on the same port for HTTPS instead of HTTP.
-Plain HTTP is no longer served on that port — put a load balancer in
-front to redirect HTTP → HTTPS, or accept that clients must use the
-`https://` scheme.
-
-Cipher suites and protocol versions match Mozilla's "intermediate"
-profile: TLS 1.2 minimum, modern AEAD suites only, ALPN `h2` /
-`http/1.1` so HTTP/2 is negotiated by default. `SSLv3`, `TLS 1.0`, and
-`TLS 1.1` are rejected.
-
-To enable mutual TLS, set `VC_TLS_CLIENT_CA_FILE` to a PEM bundle of
-the CA(s) you want to trust for client certificates. The server will
-require a valid client cert on every connection (mTLS).
-
-#### Hot reload (cert-manager / Let's Encrypt)
-
-When `VC_TLS_RELOAD_INTERVAL` is set to a non-zero duration (e.g. `5m`,
-`1h`), a background goroutine polls the cert + key files. If either
-file's mtime or size has changed, the cert is re-parsed and
-atomically swapped in. In-flight connections continue with the old
-cert; new handshakes use the new one. This is the recommended
-configuration for cert-manager + Let's Encrypt, where the cert is
-renewed on disk every 60–90 days and the server must pick up the new
-cert without a restart.
-
-```sh
-# Example: 5-minute reload poll.
-VC_TLS_CERT_FILE=/etc/vectorclock/tls.crt \
-VC_TLS_KEY_FILE=/etc/vectorclock/tls.key \
-VC_TLS_RELOAD_INTERVAL=5m \
-./server
+```bash
+curl -X POST :8080/api/v1/scenarios/<name>/run
 ```
 
-#### Generating a self-signed cert for testing
+| Scenario | Demonstrates |
+|----------|-------------|
+| `BasicLamport` | Lamport clocks, happened-before, concurrent events |
+| `CausalViolation` | What breaks without causal delivery (`delivery_mode: immediate`) |
+| `CausalDelivery` | BSS hold-back queue flushing in the right order |
+| `Snapshot3P` | Chandy-Lamport markers, consistent cut, in-transit messages |
+| `ConcurrentWrites` | Concurrent KV writes → version-vector conflict |
+| `FalseConflict` | Version vectors distinguishing concurrent from causal writes |
+| `MatrixGC` | Matrix clock MC3 rule, stable-message garbage collection frontier |
+| `PartitionAndHeal` | Network partition, message loss, recovery |
 
-Use the helper bundled with the tlsconfig package (no openssl
-dependency required):
+---
 
-```go
-import "github.com/DistributedClocks/vectorclock-system/gateway/tlsconfig"
+## Frontend panels
 
-pair, _ := tlsconfig.GenerateSelfSignedCert(
-    "localhost",
-    []string{"localhost"},
-    []net.IP{net.ParseIP("127.0.0.1")},
-)
-os.WriteFile("cert.pem", pair.CertPEM, 0o600)
-os.WriteFile("key.pem",  pair.KeyPEM,  0o600)
+| Panel | Shows |
+|-------|-------|
+| **SpaceTimeDiagram** | Live D3 space-time diagram — events, causal arrows, snapshot cut line, scrubber |
+| **ClockInspector** | Per-process clock state (Lamport int / vector / N×N matrix) + hold-back queue |
+| **CausalDelivery** | BSS queue depth chart, held/delivered timeline, BlockedBy analysis |
+| **SnapshotViewer** | Completed snapshots — process states, in-transit channel messages |
+| **ConflictDash** | KV store conflicts — version vectors side-by-side, dominance graph |
+| **ScenarioPanel** | Run cards for all 8 scenarios, live indicator, history |
+| **TheoryCards** | Inline collapsible reference cards for each concept |
+
+---
+
+## Configuration
+
+```yaml
+# config.yaml
+simulation:
+  initial_processes: 3
+  clock_type: vector       # lamport | vector | matrix
+  delivery_mode: causal    # immediate | causal
+  channels: full_mesh
+
+timing:
+  message_transit_delay: 50ms
+  drop_probability: 0.0
+
+kv:
+  conflict_strategy: keep_all  # lww | first_writer | merge | keep_all
 ```
 
-Or with `openssl`:
+Key environment variables:
 
-```sh
-openssl req -x509 -newkey ed25519 -nodes -days 365 \
-    -subj "/CN=localhost" \
-    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
-    -keyout key.pem -out cert.pem
+| Variable | Purpose |
+|----------|---------|
+| `VC_API_TOKENS` | `name:token` pairs — enables Bearer auth |
+| `VC_ALLOWED_ORIGINS` | WebSocket origin allowlist |
+| `VC_TLS_CERT_FILE` / `VC_TLS_KEY_FILE` | Enable TLS |
+| `VC_TLS_RELOAD_INTERVAL` | Hot-reload cert on this interval (e.g. `5m`) |
+| `OTEL_EXPORTER` | `none` \| `stdout` \| `otlp` |
+
+Full reference → [docs/configuration](https://sanskarpan.github.io/Vector-Clock/configuration/)
+
+---
+
+## API
+
+The backend exposes a REST + WebSocket API:
+
+```
+GET  /healthz                        liveness
+GET  /readyz                         readiness
+GET  /metrics                        Prometheus text format
+POST /api/v1/processes               spawn process
+GET  /api/v1/processes               list all processes
+DEL  /api/v1/processes/:id           kill process
+POST /api/v1/messages                send message
+POST /api/v1/broadcast               broadcast to all peers
+POST /api/v1/scenarios/:name/run     run scenario
+POST /api/v1/snapshots               initiate Chandy-Lamport snapshot
+GET  /api/v1/snapshots               list snapshots
+POST /api/v1/channels/:f/:t/delay    inject delay
+POST /api/v1/channels/:f/:t/drop     inject drop probability
+POST /api/v1/partition               create network partition
+DEL  /api/v1/partition               heal partition
+PUT  /api/v1/kv/:key                 write to KV store
+GET  /api/v1/kv/:key                 read (all concurrent versions)
+GET  /ws                             WebSocket event stream
 ```
 
-Note: macOS's built-in `curl` (SecureTransport) does not currently
-support ed25519 in TLS certs, so use an ECDSA or RSA cert for manual
-smoke tests on macOS. The server itself accepts any signature
-algorithm.
+Full reference → [docs/api](https://sanskarpan.github.io/Vector-Clock/api/)
 
-#### Production: cert-manager + Let's Encrypt
+---
 
-A typical Kubernetes setup uses cert-manager to issue a Let's Encrypt
-cert and writes it to a `Secret` that the deployment mounts as a
-volume. The server's reload goroutine picks up the renewed cert
-without a pod restart.
+## Testing
 
-See `deploy/k8s/manifests.yaml` for an annotated example, including
-the `cert-manager.io/issuer` annotation and the `Secret`/`VolumeMount`
-wiring.
+```bash
+# Unit + integration (race detector)
+make test-race
 
-### OpenTelemetry
+# Coverage report (fails if < 60%)
+make test-coverage
 
-| Variable                       | Type   | Default              | Description                              |
-| ------------------------------ | ------ | -------------------- | ---------------------------------------- |
-| `OTEL_EXPORTER`                | string | `none`               | Values: `otlp`, `stdout`, `none`         |
-| `OTEL_SERVICE_NAME`            | string | `vectorclock-server` | Service name for traces                  |
-| `OTEL_SAMPLE_RATIO`            | float  | `1.0`                | Trace sampling ratio (0.0 to 1.0)        |
-| `OTEL_INSECURE`                | bool   | `false`              | Skip TLS for OTLP exporter               |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`  | string | `localhost:4318`     | OTLP exporter endpoint                   |
+# E2E against live server
+VC_API_TOKENS="test:secret" go test ./test/e2e/... -v -timeout=180s
 
-## HTTP + WebSocket API
+# K6 load test
+k6 run test/k6/scenarios.js --env BASE_URL=http://localhost:8080
 
-Base URL: `http://localhost:8080/api/v1`.
-
-### Operational
-
-- `GET /healthz` — liveness (always 200 if process running)
-- `GET /readyz` — readiness (503 during shutdown)
-- `GET /metrics` — Prometheus text exposition format
-
-### Simulation
-
-- `POST /simulation/start` — `{ processCount, clockType, deliveryMode }`
-- `POST /simulation/reset` — body optional, same fields
-- `GET  /simulation/state` — current snapshot of all processes
-
-### Processes
-
-- `POST   /processes` — `{ id, clockType?, deliveryMode? }` (201 Created)
-- `DELETE /processes/:id`
-- `GET    /processes/:id`
-- `POST   /processes/:id/event` — tick internal event
-- `POST   /processes/:id/snapshot` — initiate Chandy-Lamport snapshot
-
-### Messages
-
-- `POST /messages` — `{ from, to, data }`
-- `POST /broadcast` — `{ from, data }`
-
-### Snapshots
-
-- `GET /snapshots/:id`
-- `GET /snapshots/:id/verify`
-
-### Causality
-
-- `GET /causality/happened-before?a=<id>&b=<id>`
-
-### Faults
-
-- `POST   /faults/delay` — `{ from, to, delayMs }` (max 600000ms)
-- `POST   /faults/drop` — `{ from, to }` (next message on that channel)
-- `DELETE /faults` — clear all injected faults
-
-### KV store (causal conflict detection)
-
-- `POST /kv/:key` — `{ value: base64, authorId, contextVc: {pid: count} }`
-- `GET  /kv/:key` — list sibling versions
-- `POST /kv/:key/resolve` — `{ strategy: "last_writer_wins" | "first_writer_wins" | "keep_all" }`
-
-### Scenarios
-
-- `GET  /scenarios`
-- `POST /scenarios/:name/run` — async; emits `scenario_step` events
-
-### WebSocket
-
-- `GET /ws` — bidirectional event stream. Client messages: `{ action, types }` (parsed but filter not yet applied).
-
-All errors are JSON: `{ "error": "message" }`. Errors never leak internal
-paths or goroutine stacks.
-
-## Running tests
-
-```sh
-make test              # all tests, fast
-make test-race         # with race detector (~3x slower)
-make test-coverage     # generates coverage.html, enforces 70% min
-make fuzz              # 5s per fuzz target
-make bench             # benchmarks
+# Playwright browser tests (22 tests)
+cd frontend && bunx playwright test
 ```
 
-Individual packages:
+Test pyramid: unit per package → integration → E2E → K6 load/chaos → Playwright browser.
+All pass with `-race`. See [docs/testing](https://sanskarpan.github.io/Vector-Clock/testing/) for the full matrix.
 
-```sh
-go test ./internal/clock/vector/...
-go test ./internal/simulation/... -race
-go test -run TestCausalDelivery_HoldsOutOfOrder ./internal/process/...
+---
+
+## Deployment
+
+```bash
+# Kubernetes
+kubectl apply -f deploy/k8s/
+kubectl rollout status deployment/vectorclock-server -n vectorclock
+
+# Docker Compose (production)
+VC_API_TOKENS="admin:$(openssl rand -hex 32)" \
+VC_TLS_CERT_FILE=/certs/tls.crt \
+VC_TLS_KEY_FILE=/certs/tls.key \
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-## Building and running in Docker
+Full guide → [docs/deployment](https://sanskarpan.github.io/Vector-Clock/deployment/)
 
-```sh
-# Build and run locally
-docker compose up --build
+---
 
-# Or build a release image
-docker build -t vectorclock/server:1.0.0 .
-docker run --rm -p 8080:8080 \
-    -e PORT=8080 \
-    -e VC_ALLOWED_ORIGINS=https://app.example.com \
-    vectorclock/server:1.0.0
-```
+## Documentation
 
-The image is `distroless/static:nonroot` — no shell, runs as UID 65532.
-`HEALTHCHECK` is intentionally NONE because the distroless image lacks `wget`
-or `curl`; use Kubernetes' `httpGet` probe against `/healthz`.
+**[sanskarpan.github.io/Vector-Clock](https://sanskarpan.github.io/Vector-Clock/)** — full site:
 
-## Contributing
+- [Core concepts](https://sanskarpan.github.io/Vector-Clock/concepts/) — logical time, happened-before, consistent cuts
+- [Clock algorithms](https://sanskarpan.github.io/Vector-Clock/algorithms/) — Lamport, vector, matrix, DVV with Go API
+- [Global snapshots](https://sanskarpan.github.io/Vector-Clock/snapshot/) — Chandy-Lamport theory + ABBA deadlock fix
+- [Causal delivery](https://sanskarpan.github.io/Vector-Clock/causal-delivery/) — BSS hold-back queues
+- [Conflict detection](https://sanskarpan.github.io/Vector-Clock/conflict/) — version vectors, LWW, FWW
+- [Architecture](https://sanskarpan.github.io/Vector-Clock/architecture/) — package structure, concurrency model
+- [API reference](https://sanskarpan.github.io/Vector-Clock/api/) — all endpoints and WS events
+- [Deployment](https://sanskarpan.github.io/Vector-Clock/deployment/) — Docker, Kubernetes, TLS, Prometheus
+- [Cookbook](https://sanskarpan.github.io/Vector-Clock/cookbook/) — copy-paste recipes
 
-1. Fork → branch named `feat/<short-name>` or `fix/<short-name>`.
-2. Run `make lint test test-race` locally before pushing.
-3. Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
-4. Open a PR; CI must pass (lint, test, race, coverage, vuln, build).
-5. Coverage must remain ≥ 70%.
+Architecture decisions → [docs/adr/](docs/adr/)
+Operations runbook → [docs/RUNBOOK.md](docs/RUNBOOK.md)
 
-Branch names: `feat/...`, `fix/...`, `docs/...`, `refactor/...`, `test/...`.
+---
+
+## Paper references
+
+| Paper | What it enables |
+|-------|----------------|
+| Lamport (1978). *Time, clocks, and the ordering of events.* CACM. | Happened-before, Lamport clocks |
+| Fidge (1988). *Timestamps in message-passing systems.* Proc. ACSC. | Vector clocks |
+| Mattern (1989). *Virtual time and global states.* Parallel and Distributed Algorithms. | Vector clocks, consistent cuts |
+| Kshemkalyani & Singhal (1992). *Efficient detection of message causality.* IEEE TPDS. | Matrix clocks (MC1–MC4) |
+| Chandy & Lamport (1985). *Distributed snapshots.* ACM TOCS. | Global snapshot algorithm |
+| Birman, Schiper & Stephenson (1987). *Lightweight causal and atomic group multicast.* ACM TOCS. | BSS causal delivery |
+| Parker et al. (1983). *Detection of mutual inconsistency.* IEEE TSE. | Version vectors |
+| Preguiça et al. (2010). *A dotted version vector.* SRDS. | Dotted version vectors |
+
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
