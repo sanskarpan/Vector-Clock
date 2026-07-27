@@ -8,6 +8,7 @@ import { ConflictDash } from './components/ConflictDash/index'
 import { SnapshotViewer } from './components/SnapshotViewer/index'
 import { ScenarioPanel } from './components/ScenarioPanel/index'
 import { TheoryCards } from './components/TheoryCards/index'
+import { showToast } from './components/Toast/index'
 import { wsConnect } from './ws/socket'
 import { spawnProcess, resetSimulation } from './api/client'
 
@@ -56,6 +57,8 @@ function processSpecialEvents(events: DHTEvent[]): void {
     if (event.type === 'snapshot_complete') {
       const snapId = event.snapshot?.snapshotId ?? event.id
       snapshotViewer.onSnapshotComplete(snapId, (event as any).processes ?? [])
+      const cut = (event as any).cut as { processId: string; localSeq: number }[] | undefined
+      if (cut) diagram.setCutData(cut)
     }
   }
 }
@@ -104,30 +107,27 @@ deliveryModeSelect?.addEventListener('change', () => {
 document.getElementById('btn-internal-event')?.addEventListener('click', async () => {
   const pid = promptPid()
   if (!pid) return
-  // H9: check res.ok before parsing
   const res = await fetch('/api/processes/' + pid + '/event', { method: 'POST' })
-  if (!res.ok) console.error('internal event failed:', res.status)
+  if (!res.ok) showToast(`Internal event failed (${res.status})`)
 })
 
 document.getElementById('btn-send-message')?.addEventListener('click', async () => {
   const from = promptPid('From process:')
   const to = promptPid('To process:')
   if (!from || !to) return
-  // H9: check res.ok
   const res = await fetch('/api/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to, data: 'msg-' + Date.now() })
   })
-  if (!res.ok) console.error('send message failed:', res.status)
+  if (!res.ok) showToast(`Send message failed (${res.status})`)
 })
 
 document.getElementById('btn-snapshot')?.addEventListener('click', async () => {
   const pid = promptPid('Initiator:')
   if (!pid) return
-  // H9: check res.ok
   const res = await fetch('/api/processes/' + pid + '/snapshot', { method: 'POST' })
-  if (!res.ok) console.error('snapshot failed:', res.status)
+  if (!res.ok) showToast(`Snapshot failed (${res.status})`)
 })
 
 document.getElementById('btn-reset')?.addEventListener('click', async () => {
@@ -135,7 +135,7 @@ document.getElementById('btn-reset')?.addEventListener('click', async () => {
     await resetSimulation(3, getClockType(), getDeliveryMode())
     await loadInitialState()
   } catch (err) {
-    console.error('reset failed:', err)
+    showToast(`Reset failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 })
 
@@ -145,7 +145,7 @@ document.getElementById('btn-add-process')?.addEventListener('click', async () =
   try {
     await spawnProcess(id, getClockType(), getDeliveryMode())
   } catch (err) {
-    console.error('spawn failed:', err)
+    showToast(`Spawn failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 })
 

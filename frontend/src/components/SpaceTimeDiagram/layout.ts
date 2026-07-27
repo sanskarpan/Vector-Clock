@@ -63,21 +63,71 @@ export function computeLayout(
 }
 
 export function computeCausalHistory(eventId: string, events: DHTEvent[]): CausalHistory {
-  const target = events.find(e => e.id === eventId)
-  if (!target) return { causes: new Set(), effects: new Set() }
+  const byId = new Map<string, DHTEvent>()
+  for (const e of events) byId.set(e.id, e)
 
-  const causes = new Set<string>()
-  const effects = new Set<string>()
-
+  // Build: msgId → send event, msgId → receive event
+  const sendByMsg = new Map<string, DHTEvent>()
+  const recvByMsg = new Map<string, DHTEvent>()
   for (const e of events) {
-    if (e.id === eventId) continue
-    if (e.processId === target.processId) {
-      if (e.globalSeq < target.globalSeq) {
-        causes.add(e.id)
-      } else if (e.globalSeq > target.globalSeq) {
-        effects.add(e.id)
+    if (!e.message) continue
+    if (e.type === 'send') sendByMsg.set(e.message.id, e)
+    if (e.type === 'receive' || e.type === 'message_delivered') recvByMsg.set(e.message.id, e)
+  }
+
+  // Predecessors of an event = same-process events earlier + the send for any receive
+  function predecessors(e: DHTEvent): string[] {
+    const preds: string[] = []
+    for (const other of events) {
+      if (other.processId === e.processId && other.globalSeq < e.globalSeq) {
+        preds.push(other.id)
       }
     }
+    if ((e.type === 'receive' || e.type === 'message_delivered') && e.message) {
+      const send = sendByMsg.get(e.message.id)
+      if (send) preds.push(send.id)
+    }
+    return preds
+  }
+
+  // Successors of an event = same-process events later + the receive for any send
+  function successors(e: DHTEvent): string[] {
+    const succs: string[] = []
+    for (const other of events) {
+      if (other.processId === e.processId && other.globalSeq > e.globalSeq) {
+        succs.push(other.id)
+      }
+    }
+    if (e.type === 'send' && e.message) {
+      const recv = recvByMsg.get(e.message.id)
+      if (recv) succs.push(recv.id)
+    }
+    return succs
+  }
+
+  const target = byId.get(eventId)
+  if (!target) return { causes: new Set(), effects: new Set() }
+
+  // BFS backward to find all causal ancestors
+  const causes = new Set<string>()
+  const queue: string[] = predecessors(target)
+  while (queue.length > 0) {
+    const cur = queue.pop()!
+    if (cur === eventId || causes.has(cur)) continue
+    causes.add(cur)
+    const e = byId.get(cur)
+    if (e) queue.push(...predecessors(e))
+  }
+
+  // BFS forward to find all causal effects
+  const effects = new Set<string>()
+  const fqueue: string[] = successors(target)
+  while (fqueue.length > 0) {
+    const cur = fqueue.pop()!
+    if (cur === eventId || effects.has(cur)) continue
+    effects.add(cur)
+    const e = byId.get(cur)
+    if (e) fqueue.push(...successors(e))
   }
 
   return { causes, effects }
