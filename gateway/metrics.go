@@ -66,8 +66,8 @@ func writeMetric(w io.Writer, name string, t dto.MetricType, m *dto.Metric) {
 		fmt.Fprintf(w, "%s%s %g\n", name, labels, m.GetUntyped().GetValue())
 	case dto.MetricType_HISTOGRAM:
 		h := m.GetHistogram()
-		fmt.Fprintf(w, "%s_bucket%s %d\n", name, appendLabel(labels, "le", "+Inf"), h.GetSampleCount())
-		// Bucket boundaries in ascending order.
+		// Finite bucket boundaries in ascending order (Prometheus text format
+		// requires strictly ascending le= values, with +Inf appearing LAST).
 		buckets := h.GetBucket()
 		sort.SliceStable(buckets, func(i, j int) bool {
 			return buckets[i].GetUpperBound() < buckets[j].GetUpperBound()
@@ -77,6 +77,8 @@ func writeMetric(w io.Writer, name string, t dto.MetricType, m *dto.Metric) {
 				appendLabel(labels, "le", formatFloat(b.GetUpperBound())),
 				b.GetCumulativeCount())
 		}
+		// +Inf bucket must be last per the Prometheus text format spec.
+		fmt.Fprintf(w, "%s_bucket%s %d\n", name, appendLabel(labels, "le", "+Inf"), h.GetSampleCount())
 		fmt.Fprintf(w, "%s_sum%s %g\n", name, labels, h.GetSampleSum())
 		fmt.Fprintf(w, "%s_count%s %d\n", name, labels, h.GetSampleCount())
 	case dto.MetricType_SUMMARY:
