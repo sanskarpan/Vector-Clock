@@ -49,9 +49,12 @@ func Send(mc MatrixClock, self string) (local MatrixClock, msgStamp MatrixClock)
 	return
 }
 
-// Receive processes an incoming matrix clock (MC3):
+// Receive processes an incoming matrix clock (Kshemkalyani-Singhal MC3):
 //  1. Increment MT[self][self]
-//  2. Pointwise-max self's row with sender's row in the incoming matrix
+//  2. For self's row: pointwise-max with the sender's row in the incoming matrix
+//  3. For every OTHER row k: pointwise-max with incoming[k] so that we
+//     propagate the sender's transitive knowledge of all other processes.
+//     Without step 3, MinKnowledge always reads stale zeros for non-self rows.
 func Receive(local MatrixClock, incoming MatrixClock, self, sender string) MatrixClock {
 	result := DeepCopy(local)
 	if result[self] == nil {
@@ -59,11 +62,25 @@ func Receive(local MatrixClock, incoming MatrixClock, self, sender string) Matri
 	}
 	result[self][self]++ // tick own clock
 
-	// Update self's row: max with sender's row from incoming matrix
-	senderRow := incoming[sender]
-	for pid, senderKnows := range senderRow {
-		if result[self][pid] < senderKnows {
-			result[self][pid] = senderKnows
+	// Step 2: merge sender's row into self's row.
+	for pid, val := range incoming[sender] {
+		if result[self][pid] < val {
+			result[self][pid] = val
+		}
+	}
+
+	// Step 3: propagate sender's knowledge of all other processes.
+	for k, incomingRow := range incoming {
+		if k == self {
+			continue // already handled in step 2
+		}
+		if result[k] == nil {
+			result[k] = make(map[string]uint64)
+		}
+		for pid, val := range incomingRow {
+			if result[k][pid] < val {
+				result[k][pid] = val
+			}
 		}
 	}
 	return result
