@@ -1,9 +1,16 @@
 # Vector Clock Lab
 
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://sanskarpan.github.io/Vector-Clock/)
+[![CI](https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml/badge.svg)](https://github.com/sanskarpan/Vector-Clock/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > An interactive laboratory for exploring distributed-system time: Lamport
 > scalar clocks, vector clocks, matrix clocks, version vectors, dotted version
 > vectors, causal delivery (BSS hold-back queues), the Chandy-Lamport global
 > snapshot algorithm, and multi-version conflict detection.
+
+**[Full documentation →](https://sanskarpan.github.io/Vector-Clock/)**
 
 ---
 
