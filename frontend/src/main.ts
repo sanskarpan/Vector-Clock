@@ -8,6 +8,7 @@ import { ConflictDash } from './components/ConflictDash/index'
 import { SnapshotViewer } from './components/SnapshotViewer/index'
 import { ScenarioPanel } from './components/ScenarioPanel/index'
 import { TheoryCards } from './components/TheoryCards/index'
+import { KVStorePanel } from './components/KVStore/index'
 import { showToast } from './components/Toast/index'
 import { wsConnect } from './ws/socket'
 import { spawnProcess, resetSimulation } from './api/client'
@@ -40,6 +41,10 @@ const theoryCards = new TheoryCards(
   document.getElementById('theory-cards')!
 )
 
+const kvPanel = new KVStorePanel(
+  document.getElementById('kv-store-panel')!
+)
+
 // Track processed event IDs to avoid re-processing on every store update
 const processedEventIds = new Set<string>()
 
@@ -67,6 +72,7 @@ function processSpecialEvents(events: DHTEvent[]): void {
 simulationStore.subscribe(state => {
   diagram.update(state, state.events)
   deliveryMonitor.update(state)
+  kvPanel.refresh()
   renderProcessList(state)
   processSpecialEvents(state.events)
 })
