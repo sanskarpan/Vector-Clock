@@ -10,7 +10,7 @@ import { ScenarioPanel } from './components/ScenarioPanel/index'
 import { TheoryCards } from './components/TheoryCards/index'
 import { showToast } from './components/Toast/index'
 import { wsConnect } from './ws/socket'
-import { spawnProcess, resetSimulation } from './api/client'
+import { spawnProcess, resetSimulation, killProcess } from './api/client'
 
 // Mount components
 const diagramContainer = document.getElementById('space-time-diagram')!
@@ -190,6 +190,23 @@ function renderProcessList(state: SimulationState): void {
     el.appendChild(idSpan)
     el.appendChild(vcSpan)
     el.appendChild(statusSpan)
+
+    if (process.status === 'running') {
+      const killBtn = document.createElement('button')
+      killBtn.className = 'ml-1 text-red-400 hover:text-red-300 text-sm leading-none px-1 cursor-pointer'
+      killBtn.setAttribute('aria-label', `Kill process ${id}`)
+      killBtn.textContent = '×'
+      killBtn.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        try {
+          await killProcess(id)
+        } catch (err) {
+          showToast(`Kill failed: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      })
+      el.appendChild(killBtn)
+    }
+
     el.addEventListener('click', () => clockInspector.show(id, process, state.processes))
     container.appendChild(el)
   }
