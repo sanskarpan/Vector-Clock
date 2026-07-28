@@ -77,6 +77,7 @@ func (s *Server) registerRoutes() {
 	v1.POST("/simulation/start", s.handleSimulationStart)
 	v1.POST("/simulation/reset", s.handleSimulationReset)
 	v1.GET("/simulation/state", s.handleSimulationState)
+	v1.PUT("/simulation/config", s.handleSimulationConfig)
 
 	// Processes
 	v1.POST("/processes", s.handleSpawnProcess)
@@ -262,6 +263,26 @@ func (s *Server) handleSimulationReset(c *gin.Context) {
 
 func (s *Server) handleSimulationState(c *gin.Context) {
 	c.JSON(http.StatusOK, s.getSim().GetState())
+}
+
+type simConfigRequest struct {
+	DeliveryMode string `json:"deliveryMode"`
+}
+
+func (s *Server) handleSimulationConfig(c *gin.Context) {
+	var req simConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.safeError(c, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+	dm, err := parseDeliveryMode(req.DeliveryMode)
+	if err != nil {
+		s.safeError(c, http.StatusBadRequest, "invalid deliveryMode", err,
+			zap.String("deliveryMode", req.DeliveryMode))
+		return
+	}
+	s.getSim().SetDeliveryMode(dm)
+	c.JSON(http.StatusOK, gin.H{"deliveryMode": req.DeliveryMode})
 }
 
 // ── Processes ────────────────────────────────────────────────────────────────
