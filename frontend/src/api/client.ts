@@ -35,6 +35,12 @@ export async function resetSimulation(processCount?: number, clockType?: string,
   return res.json()
 }
 
+export async function killProcess(id: string) {
+  const res = await fetch(`${BASE}/processes/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  await checkOk(res)
+  return res.json()
+}
+
 export async function spawnProcess(id: string, clockType: string, deliveryMode: string) {
   const res = await fetch(`${BASE}/processes`, {
     method: 'POST',
