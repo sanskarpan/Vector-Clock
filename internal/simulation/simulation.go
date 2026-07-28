@@ -387,6 +387,25 @@ func (s *Simulation) InjectDrop(from, to string) {
 	s.transport.InjectDrop(from, to)
 }
 
+// SetDeliveryMode updates the global config and propagates to all running processes.
+func (s *Simulation) SetDeliveryMode(mode process.DeliveryMode) {
+	s.mu.Lock()
+	s.config.DeliveryMode = mode
+	procs := make([]*process.Process, 0, len(s.processes))
+	for _, p := range s.processes {
+		procs = append(procs, p)
+	}
+	s.mu.Unlock()
+	for _, p := range procs {
+		p.SetDeliveryMode(mode)
+	}
+}
+
+// SetPartition creates a network partition between groups. Pass nil to heal.
+func (s *Simulation) SetPartition(groups [][]string) {
+	s.transport.SetPartition(groups)
+}
+
 // Stop shuts down the simulation: stops each process, drains transport
 // forward goroutines, and stops the event bus. Idempotent.
 func (s *Simulation) Stop() {

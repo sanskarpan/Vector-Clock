@@ -1,4 +1,5 @@
 import type { SimulationState, DHTEvent } from '../../api/types'
+import { showToast } from '../Toast/index'
 
 function esc(s: string | number | undefined | null): string {
   return String(s ?? '')
@@ -23,8 +24,20 @@ export class CausalDeliveryMonitor {
       if (!btn) return
       const mode = btn.dataset.mode as 'causal' | 'immediate'
       if (mode && mode !== this.mode) {
+        const prev = this.mode
         this.mode = mode
         if (this.lastState) this._render(this.lastState)
+        fetch('/api/simulation/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deliveryMode: mode })
+        }).then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        }).catch(() => {
+          this.mode = prev
+          if (this.lastState) this._render(this.lastState)
+          showToast('Failed to change delivery mode')
+        })
       }
     })
   }

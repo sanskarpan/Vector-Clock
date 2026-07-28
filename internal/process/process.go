@@ -349,7 +349,11 @@ func (p *Process) handleMessage(msg *Message) {
 		return
 	}
 
-	switch p.cfg.DeliveryMode {
+	p.mu.RLock()
+	mode := p.cfg.DeliveryMode
+	p.mu.RUnlock()
+
+	switch mode {
 	case ImmediateDelivery:
 		p.deliverImmediate(msg)
 	case CausalDelivery:
@@ -361,6 +365,13 @@ func (p *Process) handleMessage(msg *Message) {
 	default:
 		p.deliverImmediate(msg)
 	}
+}
+
+// SetDeliveryMode changes the delivery mode for future messages.
+func (p *Process) SetDeliveryMode(mode DeliveryMode) {
+	p.mu.Lock()
+	p.cfg.DeliveryMode = mode
+	p.mu.Unlock()
 }
 
 func (p *Process) deliverImmediate(msg *Message) {
