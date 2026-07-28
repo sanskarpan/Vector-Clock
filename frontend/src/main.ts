@@ -9,6 +9,7 @@ import { SnapshotViewer } from './components/SnapshotViewer/index'
 import { ScenarioPanel } from './components/ScenarioPanel/index'
 import { TheoryCards } from './components/TheoryCards/index'
 import { KVStorePanel } from './components/KVStore/index'
+import { NetworkFaultsPanel } from './components/NetworkFaults/index'
 import { showToast } from './components/Toast/index'
 import { wsConnect } from './ws/socket'
 import { spawnProcess, resetSimulation, killProcess } from './api/client'
@@ -45,6 +46,10 @@ const kvPanel = new KVStorePanel(
   document.getElementById('kv-store-panel')!
 )
 
+const networkFaults = new NetworkFaultsPanel(
+  document.getElementById('network-faults-panel')!
+)
+
 // Track processed event IDs to avoid re-processing on every store update
 const processedEventIds = new Set<string>()
 
@@ -73,6 +78,7 @@ simulationStore.subscribe(state => {
   diagram.update(state, state.events)
   deliveryMonitor.update(state)
   kvPanel.refresh()
+  networkFaults.refresh()
   renderProcessList(state)
   processSpecialEvents(state.events)
 })

@@ -98,9 +98,12 @@ func (s *Server) registerRoutes() {
 	v1.GET("/causality/happened-before", s.handleHappenedBefore)
 
 	// Faults
+	v1.GET("/faults", s.handleGetFaults)
 	v1.POST("/faults/delay", s.handleFaultDelay)
 	v1.POST("/faults/drop", s.handleFaultDrop)
 	v1.DELETE("/faults", s.handleClearFaults)
+	v1.POST("/faults/partition", s.handleFaultPartition)
+	v1.DELETE("/faults/partition", s.handleHealPartition)
 
 	// KV store (conflict detection)
 	v1.POST("/kv/:key", s.handleKVWrite)
@@ -542,6 +545,51 @@ func (s *Server) handleFaultDrop(c *gin.Context) {
 func (s *Server) handleClearFaults(c *gin.Context) {
 	s.getSim().GetTransport().ClearFaults()
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (s *Server) handleGetFaults(c *gin.Context) {
+	fs := s.getSim().GetTransport().GetFaults()
+	c.JSON(http.StatusOK, gin.H{
+		"delays":    fs.Delays,
+		"drops":     fs.Drops,
+		"partition": fs.Partition,
+	})
+}
+
+type partitionRequest struct {
+	SideA []string `json:"sideA"`
+	SideB []string `json:"sideB"`
+}
+
+func (s *Server) handleFaultPartition(c *gin.Context) {
+	var req partitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.safeError(c, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+	if len(req.SideA) == 0 || len(req.SideB) == 0 {
+		s.safeError(c, http.StatusBadRequest, "sideA and sideB must each be non-empty", nil)
+		return
+	}
+	const maxSideLen = 256
+	if len(req.SideA) > maxSideLen || len(req.SideB) > maxSideLen {
+		s.safeError(c, http.StatusBadRequest, "partition side too large (max 256 entries)", nil)
+		return
+	}
+	for _, pid := range append(req.SideA, req.SideB...) {
+		if err := validatePID(pid); err != nil {
+			s.safeError(c, http.StatusBadRequest, "invalid process id in partition", err,
+				zap.String("pid", pid))
+			return
+		}
+	}
+	s.getSim().SetPartition([][]string{req.SideA, req.SideB})
+	c.JSON(http.StatusOK, gin.H{"partition": [][]string{req.SideA, req.SideB}})
+}
+
+func (s *Server) handleHealPartition(c *gin.Context) {
+	s.getSim().SetPartition(nil)
+	c.JSON(http.StatusOK, gin.H{"partition": nil})
 }
 
 // ── KV store (conflict detection) ────────────────────────────────────────────

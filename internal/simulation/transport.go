@@ -236,6 +236,8 @@ func (t *SimTransport) InjectReorder(from, to string) {
 
 // SetPartition partitions processes into groups. Messages crossing groups
 // are silently dropped. Call with nil or empty to remove the partition.
+// Deep-copies the input so the transport owns its data independently of
+// the caller's slice (avoids aliasing with request-body memory).
 func (t *SimTransport) SetPartition(groups [][]string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -243,7 +245,48 @@ func (t *SimTransport) SetPartition(groups [][]string) {
 		t.partitionGroups = nil
 		return
 	}
-	t.partitionGroups = groups
+	copied := make([][]string, len(groups))
+	for i, g := range groups {
+		copied[i] = append([]string(nil), g...)
+	}
+	t.partitionGroups = copied
+}
+
+// FaultState is a snapshot of currently active injected faults.
+type FaultState struct {
+	Delays    map[string]int64 // "from→to" -> milliseconds; zero entries omitted
+	Drops     []string         // "from→to" channels with drop-next active
+	Partition [][]string       // partition groups; nil means no partition
+}
+
+// GetFaults returns a snapshot of the current fault state.
+func (t *SimTransport) GetFaults() FaultState {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	delays := make(map[string]int64, len(t.delays))
+	for k, d := range t.delays {
+		if d > 0 {
+			delays[k.From+"→"+k.To] = int64(d / time.Millisecond)
+		}
+	}
+
+	drops := make([]string, 0)
+	for k, v := range t.dropNext {
+		if v {
+			drops = append(drops, k.From+"→"+k.To)
+		}
+	}
+
+	var part [][]string
+	if len(t.partitionGroups) > 0 {
+		part = make([][]string, len(t.partitionGroups))
+		for i, g := range t.partitionGroups {
+			part[i] = append([]string(nil), g...)
+		}
+	}
+
+	return FaultState{Delays: delays, Drops: drops, Partition: part}
 }
 
 // ClearFaults removes all injected faults.
